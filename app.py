@@ -70,12 +70,21 @@ def upload_file():
                 f.write(chunk)
         
         # Load mapping to get test names
-        mapping_df = pd.read_csv(MAPPING_FILE)
-        thyrocare_tests = mapping_df['Thyrocare Test Name'].dropna().tolist()
+        try:
+            mapping_df = pd.read_csv(MAPPING_FILE)
+            thyrocare_tests = mapping_df['Thyrocare Test Name'].dropna().tolist()
+            if not thyrocare_tests:
+                raise ValueError("No test names found in mapping file")
+        except Exception as e:
+            flash(f'Error loading test names: {str(e)}')
+            os.remove(filepath)
+            return redirect(url_for('index'))
         
         # Process the PDF with timeout
         try:
             results = process_report(filepath, thyrocare_tests, batch_size=20)
+            if not results:
+                raise ValueError("No values could be extracted from the PDF")
         except Exception as e:
             flash(f'Error processing PDF: {str(e)}')
             os.remove(filepath)
