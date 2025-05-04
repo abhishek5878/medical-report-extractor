@@ -121,48 +121,71 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleFileUpload(formData) {
         const statusMessage = document.getElementById('statusMessage');
         const resultContainer = document.getElementById('resultContainer');
-        
+        const maxRetries = 3;
+        let retryCount = 0;
+
         // Show loading state
         statusMessage.textContent = 'Processing file...';
         statusMessage.className = 'status-message processing';
         resultContainer.style.display = 'none';
-        
-        fetch('/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(data => {
-                    throw new Error(data.error || 'Upload failed');
+
+        function attemptUpload() {
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        try {
+                            const data = JSON.parse(text);
+                            throw new Error(data.error || 'Upload failed');
+                        } catch (e) {
+                            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                        }
+                    });
+                }
+                return response.text().then(text => {
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        throw new Error('Invalid server response');
+                    }
                 });
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                statusMessage.textContent = 'File processed successfully!';
-                statusMessage.className = 'status-message success';
-                
-                // Show download link
-                const downloadLink = document.createElement('a');
-                downloadLink.href = `/download/${data.filename}`;
-                downloadLink.textContent = 'Download Results';
-                downloadLink.className = 'download-button';
-                downloadLink.download = data.filename;
-                
-                resultContainer.innerHTML = '';
-                resultContainer.appendChild(downloadLink);
-                resultContainer.style.display = 'block';
-            } else {
-                throw new Error(data.error || 'Processing failed');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            statusMessage.textContent = `Error: ${error.message}`;
-            statusMessage.className = 'status-message error';
-            resultContainer.style.display = 'none';
-        });
+            })
+            .then(data => {
+                if (data.success) {
+                    statusMessage.textContent = 'File processed successfully!';
+                    statusMessage.className = 'status-message success';
+                    
+                    // Show download link
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = `/download/${data.filename}`;
+                    downloadLink.textContent = 'Download Results';
+                    downloadLink.className = 'download-button';
+                    downloadLink.download = data.filename;
+                    
+                    resultContainer.innerHTML = '';
+                    resultContainer.appendChild(downloadLink);
+                    resultContainer.style.display = 'block';
+                } else {
+                    throw new Error(data.error || 'Processing failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (retryCount < maxRetries && error.message.includes('Server error')) {
+                    retryCount++;
+                    statusMessage.textContent = `Retrying upload (${retryCount}/${maxRetries})...`;
+                    setTimeout(attemptUpload, 2000 * retryCount); // Exponential backoff
+                } else {
+                    statusMessage.textContent = `Error: ${error.message}`;
+                    statusMessage.className = 'status-message error';
+                    resultContainer.style.display = 'none';
+                }
+            });
+        }
+
+        attemptUpload();
     }
 }); 

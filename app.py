@@ -187,41 +187,52 @@ def upload_file():
                     # Clean up the uploaded PDF
                     os.remove(filepath)
                     
-                    response = jsonify({
+                    response_data = {
                         'success': True,
                         'filename': result_filename,
                         'message': 'File processed successfully'
-                    })
+                    }
+                    response = jsonify(response_data)
                     response.headers['Content-Type'] = 'application/json'
+                    response.headers['Content-Length'] = len(json.dumps(response_data))
                     return response
                     
                 except TimeoutError:
                     logger.error("Processing timed out")
                     if os.path.exists(filepath):
                         os.remove(filepath)
-                    return jsonify({'error': 'Processing timed out. Please try again with a smaller file.'}), 500
+                    response_data = {'error': 'Processing timed out. Please try again with a smaller file.'}
+                    response = jsonify(response_data)
+                    response.headers['Content-Type'] = 'application/json'
+                    response.headers['Content-Length'] = len(json.dumps(response_data))
+                    return response, 500
                     
             except ValueError as e:
                 logger.error(f"Error processing PDF: {str(e)}")
                 if os.path.exists(filepath):
                     os.remove(filepath)
-                response = jsonify({'error': str(e)})
+                response_data = {'error': str(e)}
+                response = jsonify(response_data)
                 response.headers['Content-Type'] = 'application/json'
+                response.headers['Content-Length'] = len(json.dumps(response_data))
                 return response, 500
             except Exception as e:
                 logger.error(f"Error processing PDF: {str(e)}")
                 if os.path.exists(filepath):
                     os.remove(filepath)
-                response = jsonify({'error': f'Error processing PDF: {str(e)}'})
-                response.headers['Content-Type'] = 'application/json'
+                response_data = {'error': f'Error processing PDF: {str(e)}'}
+                response = jsonify(response_data)
+                response.headers['Content-Length'] = len(json.dumps(response_data))
                 return response, 500
                 
         except Exception as e:
             logger.error(f"Error saving file: {str(e)}")
             if os.path.exists(filepath):
                 os.remove(filepath)
-            response = jsonify({'error': f'Error saving file: {str(e)}'})
+            response_data = {'error': f'Error saving file: {str(e)}'}
+            response = jsonify(response_data)
             response.headers['Content-Type'] = 'application/json'
+            response.headers['Content-Length'] = len(json.dumps(response_data))
             return response, 500
             
     except Exception as e:
@@ -231,8 +242,10 @@ def upload_file():
                 os.remove(filepath)
             except:
                 pass
-        response = jsonify({'error': f'Unexpected error: {str(e)}'})
+        response_data = {'error': f'Unexpected error: {str(e)}'}
+        response = jsonify(response_data)
         response.headers['Content-Type'] = 'application/json'
+        response.headers['Content-Length'] = len(json.dumps(response_data))
         return response, 500
 
 @app.route('/download/<filename>')
