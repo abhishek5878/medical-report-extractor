@@ -51,7 +51,7 @@ def inject_nonce():
     return {'csp_nonce': os.urandom(16).hex()}
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['UPLOAD_EXTENSIONS']
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() == 'pdf'
 
 @app.errorhandler(413)
 def request_entity_too_large(error):

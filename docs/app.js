@@ -44,16 +44,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function handleFileSelect(file) {
-        if (file.type !== 'application/pdf') {
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
             showError('Please upload a PDF file');
             processButton.disabled = true;
             return;
         }
+        processButton.disabled = false;
         statusMessage.textContent = `Selected file: ${file.name}`;
         statusMessage.className = 'status-message';
         statusMessage.style.display = 'block';
         resultContainer.style.display = 'none';
-        processButton.disabled = false;
     }
 
     async function attemptUpload(file) {
