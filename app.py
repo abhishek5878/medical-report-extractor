@@ -9,6 +9,8 @@ import json
 import logging
 from processors import process_report, create_validation_report
 from flask_talisman import Talisman
+from flask_cors import CORS
+import signal
 
 # Configure logging
 logging.basicConfig(
@@ -26,11 +28,13 @@ app.config['UPLOAD_EXTENSIONS'] = ['.pdf']
 # Initialize Talisman for security headers
 Talisman(app, content_security_policy={
     'default-src': "'self'",
-    'script-src': ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
-    'style-src': ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
-    'img-src': ["'self'", 'data:', 'https:'],
-    'connect-src': ["'self'", 'https://medical-report-extractor.onrender.com']
+    'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
+    'style-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+    'img-src': ["'self'", "data:", "https://cdn.jsdelivr.net"],
+    'connect-src': ["'self'", "https://medical-report-extractor.onrender.com"]
 })
+
+CORS(app, resources={r"/*": {"origins": ["https://abhishek5878.github.io"]}})
 
 @app.context_processor
 def inject_nonce():
@@ -112,7 +116,6 @@ def upload_file():
             # Process the file
             try:
                 # Set a timeout for the processing
-                import signal
                 def timeout_handler(signum, frame):
                     raise TimeoutError("Processing timed out")
                 

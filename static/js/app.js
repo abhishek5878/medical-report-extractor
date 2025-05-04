@@ -56,6 +56,34 @@ document.addEventListener('DOMContentLoaded', function() {
         processButton.disabled = false;
     }
 
+    async function attemptUpload(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('https://medical-report-extractor.onrender.com/upload', {
+                method: 'POST',
+                body: formData,
+                mode: 'cors',
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Server error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Upload error:', error);
+            throw error;
+        }
+    }
+
     function handleFileUpload(formData) {
         const maxRetries = 3;
         let retryCount = 0;
