@@ -24,6 +24,11 @@ TRUE_DATA_FILE = os.path.join('data', 'true_data.csv')
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'pdf'}
 
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    flash('File too large. Maximum size is 8MB.')
+    return redirect(url_for('index'))
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -44,12 +49,6 @@ def upload_file():
         flash('Only PDF files are allowed')
         return redirect(url_for('index'))
     
-    # Check file size
-    file_size = request.content_length
-    if file_size and file_size > app.config['MAX_CONTENT_LENGTH']:
-        flash('File too large. Maximum size is 8MB.')
-        return redirect(url_for('index'))
-    
     try:
         # Generate unique filename
         unique_filename = str(uuid.uuid4()) + '.pdf'
@@ -57,11 +56,17 @@ def upload_file():
         
         # Save file in chunks to reduce memory usage
         chunk_size = 8192  # 8KB chunks
+        total_size = 0
         with open(filepath, 'wb') as f:
             while True:
                 chunk = file.stream.read(chunk_size)
                 if not chunk:
                     break
+                total_size += len(chunk)
+                if total_size > app.config['MAX_CONTENT_LENGTH']:
+                    os.remove(filepath)
+                    flash('File too large. Maximum size is 8MB.')
+                    return redirect(url_for('index'))
                 f.write(chunk)
         
         # Load mapping to get test names
