@@ -5,7 +5,8 @@ services:
     buildCommand: |
       python -m pip install --upgrade pip
       pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 300 --workers 2 --threads 2 --preload
+      apt-get update && apt-get install -y tesseract-ocr
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 600 --workers 1 --threads 1 --preload --max-requests 1 --max-requests-jitter 0
     envVars:
       - key: OPENAI_API_KEY
         sync: false

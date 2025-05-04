@@ -155,34 +155,52 @@ def upload_file():
             
             # Process the file
             try:
-                results = process_report(filepath, test_names, batch_size=10)
-                if not results:
-                    raise ValueError("No values could be extracted from the PDF")
+                # Set a timeout for the processing
+                import signal
+                def timeout_handler(signum, frame):
+                    raise TimeoutError("Processing timed out")
                 
-                # Create result DataFrame
-                result_df = pd.DataFrame({
-                    "Test Name": list(results.keys()),
-                    "Value": list(results.values())
-                })
+                # Set the timeout to 5 minutes
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(300)  # 5 minutes timeout
                 
-                # Create result filename
-                result_filename = f"results_{int(time.time())}.xlsx"
-                result_path = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
-                
-                # Save results to Excel
-                result_df.to_excel(result_path, index=False)
-                
-                # Clean up the uploaded PDF
-                os.remove(filepath)
-                
-                response = jsonify({
-                    'success': True,
-                    'filename': result_filename,
-                    'message': 'File processed successfully'
-                })
-                response.headers['Content-Type'] = 'application/json'
-                return response
-                
+                try:
+                    results = process_report(filepath, test_names, batch_size=10)
+                    signal.alarm(0)  # Disable the alarm
+                    
+                    if not results:
+                        raise ValueError("No values could be extracted from the PDF")
+                    
+                    # Create result DataFrame
+                    result_df = pd.DataFrame({
+                        "Test Name": list(results.keys()),
+                        "Value": list(results.values())
+                    })
+                    
+                    # Create result filename
+                    result_filename = f"results_{int(time.time())}.xlsx"
+                    result_path = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
+                    
+                    # Save results to Excel
+                    result_df.to_excel(result_path, index=False)
+                    
+                    # Clean up the uploaded PDF
+                    os.remove(filepath)
+                    
+                    response = jsonify({
+                        'success': True,
+                        'filename': result_filename,
+                        'message': 'File processed successfully'
+                    })
+                    response.headers['Content-Type'] = 'application/json'
+                    return response
+                    
+                except TimeoutError:
+                    logger.error("Processing timed out")
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+                    return jsonify({'error': 'Processing timed out. Please try again with a smaller file.'}), 500
+                    
             except ValueError as e:
                 logger.error(f"Error processing PDF: {str(e)}")
                 if os.path.exists(filepath):
