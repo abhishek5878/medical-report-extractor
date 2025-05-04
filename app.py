@@ -175,28 +175,36 @@ def upload_file():
                 # Clean up the uploaded PDF
                 os.remove(filepath)
                 
-                return jsonify({
+                response = jsonify({
                     'success': True,
                     'filename': result_filename,
                     'message': 'File processed successfully'
                 })
+                response.headers['Content-Type'] = 'application/json'
+                return response
                 
             except ValueError as e:
                 logger.error(f"Error processing PDF: {str(e)}")
                 if os.path.exists(filepath):
                     os.remove(filepath)
-                return jsonify({'error': str(e)}), 500
+                response = jsonify({'error': str(e)})
+                response.headers['Content-Type'] = 'application/json'
+                return response, 500
             except Exception as e:
                 logger.error(f"Error processing PDF: {str(e)}")
                 if os.path.exists(filepath):
                     os.remove(filepath)
-                return jsonify({'error': f'Error processing PDF: {str(e)}'}), 500
+                response = jsonify({'error': f'Error processing PDF: {str(e)}'})
+                response.headers['Content-Type'] = 'application/json'
+                return response, 500
                 
         except Exception as e:
             logger.error(f"Error saving file: {str(e)}")
             if os.path.exists(filepath):
                 os.remove(filepath)
-            return jsonify({'error': f'Error saving file: {str(e)}'}), 500
+            response = jsonify({'error': f'Error saving file: {str(e)}'})
+            response.headers['Content-Type'] = 'application/json'
+            return response, 500
             
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
@@ -205,7 +213,9 @@ def upload_file():
                 os.remove(filepath)
             except:
                 pass
-        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+        response = jsonify({'error': f'Unexpected error: {str(e)}'})
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
 
 @app.route('/download/<filename>')
 def download_file(filename):

@@ -117,4 +117,52 @@ document.addEventListener('DOMContentLoaded', function() {
         progressContainer.style.display = 'none';
         resultContainer.style.display = 'none';
     }
+
+    function handleFileUpload(formData) {
+        const statusMessage = document.getElementById('statusMessage');
+        const resultContainer = document.getElementById('resultContainer');
+        
+        // Show loading state
+        statusMessage.textContent = 'Processing file...';
+        statusMessage.className = 'status-message processing';
+        resultContainer.style.display = 'none';
+        
+        fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Upload failed');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                statusMessage.textContent = 'File processed successfully!';
+                statusMessage.className = 'status-message success';
+                
+                // Show download link
+                const downloadLink = document.createElement('a');
+                downloadLink.href = `/download/${data.filename}`;
+                downloadLink.textContent = 'Download Results';
+                downloadLink.className = 'download-button';
+                downloadLink.download = data.filename;
+                
+                resultContainer.innerHTML = '';
+                resultContainer.appendChild(downloadLink);
+                resultContainer.style.display = 'block';
+            } else {
+                throw new Error(data.error || 'Processing failed');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            statusMessage.textContent = `Error: ${error.message}`;
+            statusMessage.className = 'status-message error';
+            resultContainer.style.display = 'none';
+        });
+    }
 }); 
