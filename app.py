@@ -20,6 +20,11 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB max upload size
 app.config['UPLOAD_EXTENSIONS'] = ['.pdf']
 
+# Add nonce generation function
+@app.context_processor
+def inject_nonce():
+    return {'csp_nonce': lambda: str(uuid.uuid4())}
+
 # Configure Content Security Policy
 csp = {
     'default-src': '\'self\'',
@@ -48,7 +53,15 @@ csp = {
 }
 
 # Initialize Talisman with CSP
-Talisman(app, content_security_policy=csp)
+talisman = Talisman(
+    app,
+    content_security_policy=csp,
+    content_security_policy_nonce_in=['script-src'],
+    force_https=True,
+    strict_transport_security=True,
+    session_cookie_secure=True,
+    session_cookie_http_only=True
+)
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
