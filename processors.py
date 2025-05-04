@@ -9,6 +9,14 @@ from PIL import Image
 from typing import Dict, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
 import openai
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client with environment variable
 api_key = os.environ.get("OPENAI_API_KEY")
