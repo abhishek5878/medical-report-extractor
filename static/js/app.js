@@ -72,8 +72,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `Server error: ${response.status}`);
+                let errorMessage = `Server error: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {
+                    console.error('Error parsing error response:', e);
+                }
+                throw new Error(errorMessage);
             }
 
             const data = await response.json();
@@ -95,65 +101,40 @@ document.addEventListener('DOMContentLoaded', function() {
         resultContainer.style.display = 'none';
         processButton.disabled = true;
 
-        function attemptUpload() {
-            fetch(`${API_URL}/upload`, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        try {
-                            const data = JSON.parse(text);
-                            throw new Error(data.error || 'Upload failed');
-                        } catch (e) {
-                            throw new Error(`Server error: ${response.status} ${response.statusText}`);
-                        }
-                    });
-                }
-                return response.text().then(text => {
-                    try {
-                        return JSON.parse(text);
-                    } catch (e) {
-                        throw new Error('Invalid server response');
+        async function attemptUpload() {
+            try {
+                const response = await fetch('https://medical-report-extractor.onrender.com/upload', {
+                    method: 'POST',
+                    body: formData,
+                    mode: 'cors',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json'
                     }
                 });
-            })
-            .then(data => {
+
+                if (!response.ok) {
+                    let errorMessage = `Server error: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || errorMessage;
+                    } catch (e) {
+                        console.error('Error parsing error response:', e);
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const data = await response.json();
                 if (data.success) {
                     statusMessage.textContent = 'File processed successfully!';
                     statusMessage.className = 'status-message success';
                     
                     // Show download link
                     const downloadLink = document.createElement('a');
-                    downloadLink.href = `${API_URL}/download/${data.filename}`;
+                    downloadLink.href = `https://medical-report-extractor.onrender.com/download/${data.filename}`;
                     downloadLink.textContent = 'Download Results';
                     downloadLink.className = 'download-button';
                     downloadLink.target = '_blank';
-                    
-                    // Add click handler for direct download
-                    downloadLink.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        fetch(this.href)
-                            .then(response => {
-                                if (!response.ok) throw new Error('Download failed');
-                                return response.blob();
-                            })
-                            .then(blob => {
-                                const url = window.URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = data.filename;
-                                document.body.appendChild(a);
-                                a.click();
-                                window.URL.revokeObjectURL(url);
-                                a.remove();
-                            })
-                            .catch(error => {
-                                console.error('Download error:', error);
-                                showError('Failed to download the file. Please try again.');
-                            });
-                    });
                     
                     resultContainer.innerHTML = '';
                     resultContainer.appendChild(downloadLink);
@@ -162,8 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     throw new Error(data.error || 'Processing failed');
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error:', error);
                 if (retryCount < maxRetries && error.message.includes('Server error')) {
                     retryCount++;
@@ -173,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     showError(error.message);
                     processButton.disabled = false;
                 }
-            });
+            }
         }
 
         attemptUpload();

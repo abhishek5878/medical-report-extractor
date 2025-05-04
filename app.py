@@ -31,10 +31,17 @@ Talisman(app, content_security_policy={
     'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
     'style-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
     'img-src': ["'self'", "data:", "https://cdn.jsdelivr.net"],
-    'connect-src': ["'self'", "https://medical-report-extractor.onrender.com"]
+    'connect-src': ["'self'", "https://medical-report-extractor.onrender.com", "https://abhishek5878.github.io"]
 })
 
-CORS(app, resources={r"/*": {"origins": ["https://abhishek5878.github.io"]}})
+CORS(app, resources={
+    r"/*": {
+        "origins": ["https://abhishek5878.github.io"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Accept"],
+        "supports_credentials": True
+    }
+})
 
 @app.context_processor
 def inject_nonce():
