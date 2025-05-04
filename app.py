@@ -139,6 +139,9 @@ def upload_file():
             
             # Load test names from mapping file
             try:
+                if not os.path.exists(MAPPING_FILE):
+                    raise ValueError(f"Mapping file not found: {MAPPING_FILE}")
+                    
                 mapping_df = pd.read_csv(MAPPING_FILE)
                 test_names = mapping_df['Thyrocare Test Name'].dropna().tolist()
                 if not test_names:
@@ -178,6 +181,11 @@ def upload_file():
                     'message': 'File processed successfully'
                 })
                 
+            except ValueError as e:
+                logger.error(f"Error processing PDF: {str(e)}")
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                return jsonify({'error': str(e)}), 500
             except Exception as e:
                 logger.error(f"Error processing PDF: {str(e)}")
                 if os.path.exists(filepath):
