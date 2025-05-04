@@ -137,18 +137,37 @@ def upload_file():
             
             logger.info("File saved successfully")
             
+            # Load test names from mapping file
+            try:
+                mapping_df = pd.read_csv(MAPPING_FILE)
+                test_names = mapping_df['Thyrocare Test Name'].dropna().tolist()
+                if not test_names:
+                    raise ValueError("No test names found in mapping file")
+                logger.info(f"Loaded {len(test_names)} test names from mapping file")
+            except Exception as e:
+                logger.error(f"Error loading test names: {str(e)}")
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                return jsonify({'error': f'Error loading test names: {str(e)}'}), 500
+            
             # Process the file
             try:
-                results = process_report(filepath)
+                results = process_report(filepath, test_names, batch_size=10)
                 if not results:
                     raise ValueError("No values could be extracted from the PDF")
+                
+                # Create result DataFrame
+                result_df = pd.DataFrame({
+                    "Test Name": list(results.keys()),
+                    "Value": list(results.values())
+                })
                 
                 # Create result filename
                 result_filename = f"results_{int(time.time())}.xlsx"
                 result_path = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
                 
                 # Save results to Excel
-                results.to_excel(result_path, index=False)
+                result_df.to_excel(result_path, index=False)
                 
                 # Clean up the uploaded PDF
                 os.remove(filepath)
