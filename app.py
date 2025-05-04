@@ -25,22 +25,25 @@ app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB max upload size
 app.config['UPLOAD_EXTENSIONS'] = ['.pdf']
 
-# Initialize Talisman for security headers
+# Configure CORS with more permissive settings
+CORS(app, resources={
+    r"/*": {
+        "origins": ["https://abhishek5878.github.io", "http://localhost:5000"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Accept", "Origin", "X-Requested-With"],
+        "expose_headers": ["Content-Type", "Content-Length"],
+        "supports_credentials": True,
+        "max_age": 3600
+    }
+})
+
+# Configure Talisman with more permissive CSP
 Talisman(app, content_security_policy={
     'default-src': "'self'",
     'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
     'style-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
     'img-src': ["'self'", "data:", "https://cdn.jsdelivr.net"],
-    'connect-src': ["'self'", "https://medical-report-extractor.onrender.com", "https://abhishek5878.github.io"]
-})
-
-CORS(app, resources={
-    r"/*": {
-        "origins": ["https://abhishek5878.github.io"],
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Accept"],
-        "supports_credentials": True
-    }
+    'connect-src': ["'self'", "https://medical-report-extractor.onrender.com", "https://abhishek5878.github.io", "http://localhost:5000"]
 })
 
 @app.context_processor
@@ -234,6 +237,14 @@ def download_file(filename):
 @app.route('/health')
 def health_check():
     return jsonify({'status': 'healthy'})
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', 'https://abhishek5878.github.io')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Accept')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 if __name__ == '__main__':
     app.run(debug=True)

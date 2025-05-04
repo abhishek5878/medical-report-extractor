@@ -67,7 +67,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 mode: 'cors',
                 credentials: 'include',
                 headers: {
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Origin': 'https://abhishek5878.github.io'
                 }
             });
 
@@ -109,7 +110,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     mode: 'cors',
                     credentials: 'include',
                     headers: {
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'Origin': 'https://abhishek5878.github.io'
                     }
                 });
 
