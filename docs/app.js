@@ -84,6 +84,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const data = await response.json();
+            if (!data) {
+                throw new Error('No response data received from server');
+            }
             return data;
         } catch (error) {
             if (error.name === 'AbortError') {
@@ -108,6 +111,14 @@ document.addEventListener('DOMContentLoaded', function() {
         async function attemptUpload() {
             try {
                 const data = await attemptUpload();
+                if (!data) {
+                    throw new Error('No response data received from server');
+                }
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
                 if (data.success) {
                     statusMessage.textContent = 'File processed successfully!';
                     statusMessage.className = 'status-message success';
@@ -124,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     resultContainer.style.display = 'block';
                     processButton.disabled = false;
                 } else {
-                    throw new Error(data.error || 'Processing failed');
+                    throw new Error(data.message || 'Processing failed');
                 }
             } catch (error) {
                 console.error('Error:', error);

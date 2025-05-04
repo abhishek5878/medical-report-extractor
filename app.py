@@ -72,157 +72,56 @@ def index():
 def upload_file():
     try:
         if 'file' not in request.files:
-            logger.error("No file part in request")
-            return jsonify({'error': 'No file part in the request'}), 400
-        
+            return jsonify({'error': 'No file part'}), 400
+            
         file = request.files['file']
         if file.filename == '':
-            logger.error("No file selected")
-            return jsonify({'error': 'No file selected'}), 400
-        
+            return jsonify({'error': 'No selected file'}), 400
+            
         if not allowed_file(file.filename):
-            logger.error(f"Invalid file type: {file.filename}")
             return jsonify({'error': 'Only PDF files are allowed'}), 400
-        
-        # Check file size before saving
-        file.seek(0, os.SEEK_END)
-        file_size = file.tell()
-        file.seek(0)
-        
-        if file_size > app.config['MAX_CONTENT_LENGTH']:
-            return jsonify({'error': f'File too large. Maximum size is {app.config["MAX_CONTENT_LENGTH"] / (1024 * 1024)}MB.'}), 413
-        
+            
+        if file.content_length > app.config['MAX_CONTENT_LENGTH']:
+            return jsonify({'error': f'File too large. Maximum size is {app.config["MAX_CONTENT_LENGTH"]} bytes'}), 400
+            
         # Generate unique filename
-        unique_filename = str(uuid.uuid4()) + '.pdf'
+        filename = secure_filename(file.filename)
+        unique_filename = f"{int(time.time())}_{filename}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-        logger.info(f"Saving file to: {filepath}")
         
+        # Save file in chunks
+        file.save(filepath)
+        
+        # Process the file
         try:
-            # Save file in chunks to reduce memory usage
-            chunk_size = 8192  # 8KB chunks
-            with open(filepath, 'wb') as f:
-                while True:
-                    chunk = file.stream.read(chunk_size)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-            
-            # Verify file was saved correctly
-            if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
-                raise ValueError("File was not saved correctly")
-            
-            logger.info("File saved successfully")
-            
-            # Load test names from mapping file
-            try:
-                if not os.path.exists(MAPPING_FILE):
-                    raise ValueError(f"Mapping file not found: {MAPPING_FILE}")
-                    
-                mapping_df = pd.read_csv(MAPPING_FILE)
-                test_names = mapping_df['Name'].dropna().tolist()
-                if not test_names:
-                    raise ValueError("No test names found in mapping file")
-                logger.info(f"Loaded {len(test_names)} test names from mapping file")
+            # Get test names from mapping file
+            test_names = get_test_names()
+            if not test_names:
+                return jsonify({'error': 'Failed to load test names'}), 500
                 
-            except Exception as e:
-                logger.error(f"Error loading test names: {str(e)}")
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-                return jsonify({'error': f'Error loading test names: {str(e)}'}), 500
+            # Process the report
+            results = process_report(filepath, test_names)
+            if not results:
+                return jsonify({'error': 'Failed to process report'}), 500
+                
+            # Save results to Excel
+            excel_path = save_results_to_excel(results, unique_filename)
+            if not excel_path:
+                return jsonify({'error': 'Failed to save results'}), 500
+                
+            return jsonify({
+                'success': True,
+                'message': 'File processed successfully',
+                'filename': os.path.basename(excel_path)
+            })
             
-            # Process the file
-            try:
-                # Set a timeout for the processing
-                def timeout_handler(signum, frame):
-                    raise TimeoutError("Processing timed out")
-                
-                # Set the timeout to 15 minutes
-                signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(900)  # 15 minutes timeout
-                
-                try:
-                    results = process_report(filepath, test_names, batch_size=5)  # Smaller batch size for large files
-                    signal.alarm(0)  # Disable the alarm
-                    
-                    if not results:
-                        raise ValueError("No values could be extracted from the PDF")
-                    
-                    # Create result DataFrame
-                    result_df = pd.DataFrame({
-                        "Test Name": list(results.keys()),
-                        "Value": list(results.values())
-                    })
-                    
-                    # Create result filename
-                    result_filename = f"results_{int(time.time())}.xlsx"
-                    result_path = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
-                    
-                    # Save results to Excel
-                    result_df.to_excel(result_path, index=False)
-                    
-                    # Clean up the uploaded PDF
-                    os.remove(filepath)
-                    
-                    response_data = {
-                        'success': True,
-                        'filename': result_filename,
-                        'message': 'File processed successfully'
-                    }
-                    response = jsonify(response_data)
-                    response.headers['Content-Type'] = 'application/json'
-                    response.headers['Content-Length'] = len(json.dumps(response_data))
-                    return response
-                    
-                except TimeoutError:
-                    logger.error("Processing timed out")
-                    if os.path.exists(filepath):
-                        os.remove(filepath)
-                    response_data = {'error': 'Processing timed out. The file is large and processing is taking longer than expected. Please try again.'}
-                    response = jsonify(response_data)
-                    response.headers['Content-Type'] = 'application/json'
-                    response.headers['Content-Length'] = len(json.dumps(response_data))
-                    return response, 500
-                    
-            except ValueError as e:
-                logger.error(f"Error processing PDF: {str(e)}")
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-                response_data = {'error': str(e)}
-                response = jsonify(response_data)
-                response.headers['Content-Type'] = 'application/json'
-                response.headers['Content-Length'] = len(json.dumps(response_data))
-                return response, 500
-            except Exception as e:
-                logger.error(f"Error processing PDF: {str(e)}")
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-                response_data = {'error': f'Error processing PDF: {str(e)}'}
-                response = jsonify(response_data)
-                response.headers['Content-Length'] = len(json.dumps(response_data))
-                return response, 500
-                
         except Exception as e:
-            logger.error(f"Error saving file: {str(e)}")
-            if os.path.exists(filepath):
-                os.remove(filepath)
-            response_data = {'error': f'Error saving file: {str(e)}'}
-            response = jsonify(response_data)
-            response.headers['Content-Type'] = 'application/json'
-            response.headers['Content-Length'] = len(json.dumps(response_data))
-            return response, 500
+            logger.error(f"Error processing file: {str(e)}")
+            return jsonify({'error': f'Error processing file: {str(e)}'}), 500
             
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        if 'filepath' in locals() and os.path.exists(filepath):
-            try:
-                os.remove(filepath)
-            except:
-                pass
-        response_data = {'error': f'Unexpected error: {str(e)}'}
-        response = jsonify(response_data)
-        response.headers['Content-Type'] = 'application/json'
-        response.headers['Content-Length'] = len(json.dumps(response_data))
-        return response, 500
+        logger.error(f"Error in upload_file: {str(e)}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/download/<filename>')
 def download_file(filename):
