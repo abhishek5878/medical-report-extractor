@@ -19,6 +19,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Define paths
+MAPPING_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mapping.csv')
+
 app = Flask(__name__)
 app.secret_key = "medical_report_extractor_secret_key"
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
