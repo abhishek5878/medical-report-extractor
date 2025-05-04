@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('fileInput');
     const statusMessage = document.getElementById('statusMessage');
     const resultContainer = document.getElementById('resultContainer');
+    const processButton = document.getElementById('processButton');
     const API_URL = 'https://medical-report-extractor.onrender.com'; // Your Render backend URL
 
     // Click handler for drop zone
@@ -45,12 +46,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleFileSelect(file) {
         if (file.type !== 'application/pdf') {
             showError('Please upload a PDF file');
+            processButton.disabled = true;
             return;
         }
         statusMessage.textContent = `Selected file: ${file.name}`;
         statusMessage.className = 'status-message';
         statusMessage.style.display = 'block';
         resultContainer.style.display = 'none';
+        processButton.disabled = false;
     }
 
     function handleFileUpload(formData) {
@@ -62,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
         statusMessage.className = 'status-message processing';
         statusMessage.style.display = 'block';
         resultContainer.style.display = 'none';
+        processButton.disabled = true;
 
         function attemptUpload() {
             fetch(`${API_URL}/upload`, {
@@ -97,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     downloadLink.href = `${API_URL}/download/${data.filename}`;
                     downloadLink.textContent = 'Download Results';
                     downloadLink.className = 'download-button';
-                    downloadLink.target = '_blank'; // Open in new tab
+                    downloadLink.target = '_blank';
                     
                     // Add click handler for direct download
                     downloadLink.addEventListener('click', function(e) {
@@ -126,6 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     resultContainer.innerHTML = '';
                     resultContainer.appendChild(downloadLink);
                     resultContainer.style.display = 'block';
+                    processButton.disabled = false;
                 } else {
                     throw new Error(data.error || 'Processing failed');
                 }
@@ -138,6 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     setTimeout(attemptUpload, 2000 * retryCount); // Exponential backoff
                 } else {
                     showError(error.message);
+                    processButton.disabled = false;
                 }
             });
         }
@@ -150,6 +156,7 @@ document.addEventListener('DOMContentLoaded', function() {
         statusMessage.className = 'status-message error';
         statusMessage.style.display = 'block';
         resultContainer.style.display = 'none';
+        processButton.disabled = false;
     }
 
     // Form submission handler

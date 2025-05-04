@@ -3,171 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Medical Report Extractor</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style nonce="{{ csp_nonce() }}">
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
-            padding-top: 2rem;
-        }
-        .container {
-            max-width: 800px;
-        }
-        .upload-container {
-            background-color: white;
-            border-radius: 10px;
-            padding: 2rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 2rem;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        .logo {
-            width: 80px;
-            margin-bottom: 1rem;
-        }
+    <title>Medical Report Value Extractor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
         .drop-zone {
-            border: 2px dashed #0d6efd;
-            border-radius: 5px;
-            padding: 3rem 2rem;
+            border: 2px dashed #ccc;
+            border-radius: 4px;
+            padding: 20px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s;
-            background-color: #f8f9fa;
-            margin-bottom: 1rem;
+            margin-bottom: 20px;
+            transition: border-color 0.3s ease;
         }
         .drop-zone:hover {
-            background-color: #e9ecef;
+            border-color: #666;
         }
         .drop-zone.active {
-            border-color: #198754;
-            background-color: #d1e7dd;
+            border-color: #0d6efd;
+            background-color: #f8f9fa;
         }
-        .progress-container {
-            margin-top: 2rem;
-            display: none;
+        .status-message {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 4px;
         }
-        .file-info {
-            margin-top: 1rem;
-            display: none;
+        .status-message.processing {
+            background-color: #fff3cd;
+            color: #856404;
         }
-        .alert-container {
-            margin-top: 1rem;
+        .status-message.success {
+            background-color: #d4edda;
+            color: #155724;
         }
-        .features {
-            background-color: white;
-            border-radius: 10px;
-            padding: 2rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        .status-message.error {
+            background-color: #f8d7da;
+            color: #721c24;
         }
-        .feature-item {
-            margin-bottom: 1rem;
+        .download-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #0d6efd;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 10px;
         }
-        .feature-icon {
-            background-color: #e9ecef;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 1rem;
-        }
-        #uploadSpinner {
-            display: none;
-        }
-        .processing-message {
-            display: none;
-            margin-top: 1rem;
-            text-align: center;
-            color: #0d6efd;
-        }
-        #statusMessage {
-            margin-top: 1rem;
-            display: none;
-        }
-        #resultContainer {
-            margin-top: 2rem;
-            display: none;
+        .download-button:hover {
+            background-color: #0b5ed7;
+            color: white;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Medical Report Extractor</h1>
-            <p class="text-muted">Upload your medical report PDF to extract lab test values</p>
-        </div>
-
-        <div class="upload-container">
-            <form id="uploadForm" method="post" enctype="multipart/form-data">
-                <div class="drop-zone" id="dropZone">
-                    <input type="file" id="fileInput" name="file" accept=".pdf" style="display: none">
-                    <p>Drag and drop your PDF file here or click to browse</p>
-                </div>
-                <div id="statusMessage" class="alert"></div>
-                <div class="progress-container">
-                    <div class="progress">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-                    </div>
-                </div>
-                <div class="text-center mt-3">
-                    <button type="submit" class="btn btn-primary">Process File</button>
-                </div>
-            </form>
-        </div>
-
-        <div id="resultContainer" class="text-center">
-            <a id="downloadBtn" class="btn btn-success" href="#" download>Download Results</a>
-            <a id="validationReportBtn" class="btn btn-info ms-2" href="#" download style="display: none;">Download Validation Report</a>
-        </div>
-
-        <div class="features">
-            <h4 class="mb-4">How it works</h4>
-            <div class="d-flex feature-item">
-                <div class="feature-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-upload" viewBox="0 0 16 16">
-                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                        <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
-                    </svg>
-                </div>
-                <div>
-                    <h5>1. Upload Medical Report</h5>
-                    <p class="text-muted">Drag and drop your PDF medical report or click to browse files</p>
-                </div>
+        <h1>Medical Report Value Extractor</h1>
+        <form id="uploadForm">
+            <div id="dropZone">
+                <p>Drag and drop your PDF file here or click to browse</p>
+                <input type="file" id="fileInput" accept=".pdf">
             </div>
-            
-            <div class="d-flex feature-item">
-                <div class="feature-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-cpu" viewBox="0 0 16 16">
-                        <path d="M5 0a.5.5 0 0 1 .5.5V2h1V.5a.5.5 0 0 1 1 0V2h1V.5a.5.5 0 0 1 1 0V2h1V.5a.5.5 0 0 1 1 0V2A2.5 2.5 0 0 1 14 4.5h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14v1h1.5a.5.5 0 0 1 0 1H14a2.5 2.5 0 0 1-2.5 2.5v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14h-1v1.5a.5.5 0 0 1-1 0V14A2.5 2.5 0 0 1 2 11.5H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2v-1H.5a.5.5 0 0 1 0-1H2A2.5 2.5 0 0 1 4.5 2V.5A.5.5 0 0 1 5 0zm-.5 3A1.5 1.5 0 0 0 3 4.5v7A1.5 1.5 0 0 0 4.5 13h7a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 11.5 3h-7zM5 6.5A1.5 1.5 0 0 1 6.5 5h3A1.5 1.5 0 0 1 11 6.5v3A1.5 1.5 0 0 1 9.5 11h-3A1.5 1.5 0 0 1 5 9.5v-3zM6.5 6a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/>
-                    </svg>
-                </div>
-                <div>
-                    <h5>2. AI Processing</h5>
-                    <p class="text-muted">Our system analyzes the PDF with OCR and AI to extract lab test values accurately</p>
-                </div>
+            <div id="statusMessage" class="status-message"></div>
+            <div id="buttonContainer" class="text-center mt-3">
+                <button type="submit" id="processButton" class="btn btn-primary" disabled>Process PDF</button>
             </div>
-            
-            <div class="d-flex feature-item">
-                <div class="feature-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-file-earmark-excel" viewBox="0 0 16 16">
-                        <path d="M5.884 6.68a.5.5 0 1 0-.768.64L7.349 10l-2.233 2.68a.5.5 0 0 0 .768.64L8 10.781l2.116 2.54a.5.5 0 0 0 .768-.641L8.651 10l2.233-2.68a.5.5 0 0 0-.768-.64L8 9.219l-2.116-2.54z"/>
-                        <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/>
-                    </svg>
-                </div>
-                <div>
-                    <h5>3. Download Results</h5>
-                    <p class="text-muted">Get a formatted Excel report with all extracted lab test values</p>
-                </div>
+            <div id="resultContainer">
+                <!-- Download button will be added here -->
             </div>
-        </div>
+        </form>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" nonce="{{ csp_nonce() }}"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}" nonce="{{ csp_nonce() }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
