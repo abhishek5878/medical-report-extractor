@@ -13,7 +13,7 @@ import subprocess
 import pandas as pd
 from typing import Dict, List, Optional, Tuple
 import json
-from openai import OpenAI
+import openai
 import logging
 
 # Configure logging
@@ -29,7 +29,9 @@ if not api_key:
     logger.error("OPENAI_API_KEY environment variable is not set")
     client = None
 else:
-    client = OpenAI(api_key=api_key)
+    import openai
+    openai.api_key = api_key
+    client = openai
 
 class PDFRepairEngine:
     """Class to handle PDF repair and preprocessing"""
