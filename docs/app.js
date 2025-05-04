@@ -65,10 +65,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 body: formData,
                 mode: 'cors',
-                credentials: 'include',
+                credentials: 'same-origin',
                 headers: {
-                    'Accept': 'application/json',
-                    'Origin': 'https://abhishek5878.github.io'
+                    'Accept': 'application/json'
                 }
             });
 
@@ -108,10 +107,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     method: 'POST',
                     body: formData,
                     mode: 'cors',
-                    credentials: 'include',
+                    credentials: 'same-origin',
                     headers: {
-                        'Accept': 'application/json',
-                        'Origin': 'https://abhishek5878.github.io'
+                        'Accept': 'application/json'
                     }
                 });
 
