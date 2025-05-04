@@ -5,7 +5,7 @@ services:
     buildCommand: |
       apt-get update && apt-get install -y tesseract-ocr
       pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn app:app --timeout 900 --workers 1 --threads 1 --worker-class gthread --max-requests 1 --max-requests-jitter 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
