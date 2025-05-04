@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function attemptUpload() {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+            const timeoutId = setTimeout(() => controller.abort(), 900000); // 15 minute timeout
 
             const response = await fetch('/upload', {
                 method: 'POST',
@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return data;
         } catch (error) {
             if (error.name === 'AbortError') {
-                throw new Error('Request timed out. Please try again with a smaller file.');
+                throw new Error('Request timed out. The file is large and processing is taking longer than expected. Please wait and try again.');
             }
             console.error('Upload error:', error);
             throw error;
@@ -98,8 +98,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const maxRetries = 3;
         let retryCount = 0;
 
-        // Show loading state
-        statusMessage.textContent = 'Processing file...';
+        // Show loading state with more detailed message
+        statusMessage.textContent = 'Processing large PDF file. This may take several minutes...';
         statusMessage.className = 'status-message processing';
         statusMessage.style.display = 'block';
         resultContainer.style.display = 'none';
@@ -130,8 +130,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error:', error);
                 if (retryCount < maxRetries && error.message.includes('Server error')) {
                     retryCount++;
-                    statusMessage.textContent = `Retrying upload (${retryCount}/${maxRetries})...`;
-                    setTimeout(attemptUpload, 2000 * retryCount); // Exponential backoff
+                    statusMessage.textContent = `Retrying upload (${retryCount}/${maxRetries})... This may take a while for large files.`;
+                    setTimeout(attemptUpload, 5000 * retryCount); // Longer delay between retries
                 } else {
                     showError(error.message);
                     processButton.disabled = false;

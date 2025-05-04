@@ -26,11 +26,11 @@ MAPPING_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 
 app = Flask(__name__, static_folder='docs', static_url_path='')
 app.secret_key = "medical_report_extractor_secret_key"
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
-app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB max upload size
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
 app.config['UPLOAD_EXTENSIONS'] = ['.pdf']
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
-app.config['TIMEOUT'] = 300  # 5 minutes timeout
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=15)
+app.config['TIMEOUT'] = 900  # 15 minutes timeout
 
 # Configure CORS with more permissive settings
 CORS(app, resources={
@@ -90,7 +90,7 @@ def upload_file():
         file.seek(0)
         
         if file_size > app.config['MAX_CONTENT_LENGTH']:
-            return jsonify({'error': 'File too large. Maximum size is 8MB.'}), 413
+            return jsonify({'error': f'File too large. Maximum size is {app.config["MAX_CONTENT_LENGTH"] / (1024 * 1024)}MB.'}), 413
         
         # Generate unique filename
         unique_filename = str(uuid.uuid4()) + '.pdf'
@@ -136,12 +136,12 @@ def upload_file():
                 def timeout_handler(signum, frame):
                     raise TimeoutError("Processing timed out")
                 
-                # Set the timeout to 5 minutes
+                # Set the timeout to 15 minutes
                 signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(300)  # 5 minutes timeout
+                signal.alarm(900)  # 15 minutes timeout
                 
                 try:
-                    results = process_report(filepath, test_names, batch_size=10)
+                    results = process_report(filepath, test_names, batch_size=5)  # Smaller batch size for large files
                     signal.alarm(0)  # Disable the alarm
                     
                     if not results:
@@ -177,7 +177,7 @@ def upload_file():
                     logger.error("Processing timed out")
                     if os.path.exists(filepath):
                         os.remove(filepath)
-                    response_data = {'error': 'Processing timed out. Please try again with a smaller file.'}
+                    response_data = {'error': 'Processing timed out. The file is large and processing is taking longer than expected. Please try again.'}
                     response = jsonify(response_data)
                     response.headers['Content-Type'] = 'application/json'
                     response.headers['Content-Length'] = len(json.dumps(response_data))
