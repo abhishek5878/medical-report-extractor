@@ -147,11 +147,31 @@ class EnhancedPDFExtractor:
             # Preprocess the image
             img = EnhancedPDFExtractor.preprocess_image(img)
             
-            # Check if Tesseract is available
+            # Check if Tesseract is available and in PATH
             try:
-                pytesseract.get_tesseract_version()
+                # Try to get Tesseract version
+                version = pytesseract.get_tesseract_version()
+                logger.info(f"Tesseract version: {version}")
+                
+                # Try to find Tesseract executable
+                tesseract_cmd = pytesseract.pytesseract.tesseract_cmd
+                if not os.path.exists(tesseract_cmd):
+                    logger.error(f"Tesseract executable not found at: {tesseract_cmd}")
+                    return ""
+                    
+                # Check if TESSDATA_PREFIX is set
+                tessdata_prefix = os.getenv('TESSDATA_PREFIX')
+                if not tessdata_prefix:
+                    logger.error("TESSDATA_PREFIX environment variable is not set")
+                    return ""
+                    
+                # Check if tessdata directory exists
+                if not os.path.exists(tessdata_prefix):
+                    logger.error(f"Tessdata directory not found at: {tessdata_prefix}")
+                    return ""
+                    
             except Exception as e:
-                logger.error(f"Tesseract not available: {e}")
+                logger.error(f"Tesseract check failed: {e}")
                 return ""
             
             # Run OCR with multiple configurations and take the best result
