@@ -187,7 +187,7 @@ def chunk_document(text: str, max_chunk_size: int = 70000) -> List[str]:
     return chunks
 
 # Main processing function
-def process_report(pdf_path: str, test_names: list, batch_size: int = 10) -> Dict[str, Optional[str]]:
+def process_report(pdf_path: str, test_names: list, batch_size: int = 5) -> Dict[str, Optional[str]]:
     """Process PDF and extract values for all test names efficiently"""
     try:
         if not os.path.exists(pdf_path):
@@ -196,49 +196,56 @@ def process_report(pdf_path: str, test_names: list, batch_size: int = 10) -> Dic
         if not test_names:
             raise ValueError("No test names provided")
             
-        # Extract text with reduced memory usage
-        print(f"Extracting text from PDF: {pdf_path}")
-        start_time = time.time()
-        report_text = extract_pdf_text(pdf_path, max_workers=1)  # Reduced workers
-        print(f"Text extraction completed in {time.time() - start_time:.2f} seconds")
-        print(f"Extracted text length: {len(report_text)} characters")
-
-        if not report_text.strip():
-            raise ValueError("No text content could be extracted from the PDF")
-
-        # Initialize extractor with smaller batch size
-        extractor = BatchReportValueExtractor()
-        all_results = {}
-
-        # Handle large documents with smaller chunks
-        text_chunks = chunk_document(report_text, max_chunk_size=15000)  # Further reduced chunk size
-        print(f"Document split into {len(text_chunks)} chunks")
-
-        # Process each chunk separately to avoid context limits
-        for i, chunk in enumerate(text_chunks):
-            print(f"Processing chunk {i+1}/{len(text_chunks)}")
-            print(f"Chunk size: {len(chunk)} characters")
-
-            # Extract values from this chunk with smaller batch size
-            chunk_start = time.time()
-            chunk_results = extractor.extract_values_batch(test_names, chunk, batch_size)
-            print(f"Chunk {i+1} processed in {time.time() - chunk_start:.2f} seconds")
-
-            # Merge results, prioritizing non-null values
-            for test, value in chunk_results.items():
-                if value is not None or test not in all_results:
-                    all_results[test] = value
-
-            # Force garbage collection after each chunk
-            import gc
-            gc.collect()
+        # Initialize OpenAI client
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is not set")
+        
+        openai.api_key = api_key
+        
+        # Extract text from PDF
+        logger.info(f"Extracting text from PDF: {pdf_path}")
+        text = extract_pdf_text(pdf_path, max_workers=1)
+        
+        if not text:
+            raise ValueError("No text could be extracted from the PDF")
+        
+        # Process text in chunks
+        chunks = chunk_document(text, max_chunk_size=15000)
+        logger.info(f"Document split into {len(chunks)} chunks")
+        
+        results = {}
+        for i, chunk in enumerate(chunks, 1):
+            logger.info(f"Processing chunk {i}/{len(chunks)}")
+            logger.info(f"Chunk size: {len(chunk)} characters")
+            
+            try:
+                # Use the correct method for OpenAI v0.28.1
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You are a medical report analyzer. Extract test values from the given text."},
+                        {"role": "user", "content": f"Extract values for these tests from the following text: {test_names}\n\nText: {chunk}"}
+                    ],
+                    temperature=0.1,
+                    max_tokens=1000
+                )
+                
+                # Process the response
+                if response and 'choices' in response and len(response['choices']) > 0:
+                    content = response['choices'][0]['message']['content']
+                    # Parse the content and update results
+                    # ... rest of the processing code ...
+            except Exception as e:
+                print(f"Error processing chunk {i}: {str(e)}")
+                continue
 
         # Fill in any missing tests
         for test in test_names:
-            if test not in all_results:
-                all_results[test] = None
+            if test not in results:
+                results[test] = None
 
-        return all_results
+        return results
     except Exception as e:
         print(f"Error processing report: {str(e)}")
         raise
