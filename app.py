@@ -6,13 +6,49 @@ import pandas as pd
 from werkzeug.utils import secure_filename
 import time
 import json
+import logging
 from processors import process_report, create_validation_report
+from flask_talisman import Talisman
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = "medical_report_extractor_secret_key"
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB max upload size
 app.config['UPLOAD_EXTENSIONS'] = ['.pdf']
+
+# Configure Content Security Policy
+csp = {
+    'default-src': '\'self\'',
+    'script-src': [
+        '\'self\'',
+        '\'unsafe-inline\'',
+        'https://cdn.jsdelivr.net',
+        'https://code.jquery.com'
+    ],
+    'style-src': [
+        '\'self\'',
+        '\'unsafe-inline\'',
+        'https://cdn.jsdelivr.net',
+        'https://fonts.googleapis.com'
+    ],
+    'img-src': [
+        '\'self\'',
+        'data:',
+        'https:'
+    ],
+    'font-src': [
+        '\'self\'',
+        'https://fonts.gstatic.com',
+        'https://cdn.jsdelivr.net'
+    ]
+}
+
+# Initialize Talisman with CSP
+Talisman(app, content_security_policy=csp)
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -36,17 +72,24 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     try:
+        logger.debug("Upload request received")
+        logger.debug(f"Request files: {request.files}")
+        
         if 'file' not in request.files:
+            logger.error("No file part in request")
             flash('No file part in the request')
             return redirect(url_for('index'))
         
         file = request.files['file']
+        logger.debug(f"File received: {file.filename}")
         
         if file.filename == '':
+            logger.error("No file selected")
             flash('No file selected')
             return redirect(url_for('index'))
         
         if not allowed_file(file.filename):
+            logger.error(f"Invalid file type: {file.filename}")
             flash('Only PDF files are allowed')
             return redirect(url_for('index'))
         
@@ -54,14 +97,17 @@ def upload_file():
         file.seek(0, os.SEEK_END)
         file_size = file.tell()
         file.seek(0)
+        logger.debug(f"File size: {file_size} bytes")
         
         if file_size > app.config['MAX_CONTENT_LENGTH']:
+            logger.error(f"File too large: {file_size} bytes")
             flash('File too large. Maximum size is 8MB.')
             return redirect(url_for('index'))
         
         # Generate unique filename
         unique_filename = str(uuid.uuid4()) + '.pdf'
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        logger.debug(f"Saving file to: {filepath}")
         
         try:
             # Save file in chunks to reduce memory usage
@@ -77,6 +123,8 @@ def upload_file():
             if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
                 raise ValueError("File was not saved correctly")
             
+            logger.debug("File saved successfully")
+            
             # Load mapping to get test names
             try:
                 mapping_df = pd.read_csv(MAPPING_FILE)
@@ -84,6 +132,7 @@ def upload_file():
                 if not thyrocare_tests:
                     raise ValueError("No test names found in mapping file")
             except Exception as e:
+                logger.error(f"Error loading test names: {str(e)}")
                 flash(f'Error loading test names: {str(e)}')
                 os.remove(filepath)
                 return redirect(url_for('index'))
@@ -94,6 +143,7 @@ def upload_file():
                 if not results:
                     raise ValueError("No values could be extracted from the PDF")
             except Exception as e:
+                logger.error(f"Error processing PDF: {str(e)}")
                 flash(f'Error processing PDF: {str(e)}')
                 os.remove(filepath)
                 return redirect(url_for('index'))
@@ -117,6 +167,7 @@ def upload_file():
                     output_excel_path=output_path
                 )
             except Exception as e:
+                logger.error(f"Error creating validation report: {str(e)}")
                 flash(f'Error creating validation report: {str(e)}')
                 os.remove(filepath)
                 return redirect(url_for('index'))
@@ -133,12 +184,14 @@ def upload_file():
             )
             
         except Exception as e:
+            logger.error(f"Error saving file: {str(e)}")
             flash(f'Error saving file: {str(e)}')
             if os.path.exists(filepath):
                 os.remove(filepath)
             return redirect(url_for('index'))
             
     except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
         flash(f'Unexpected error: {str(e)}')
         if 'filepath' in locals() and os.path.exists(filepath):
             try:

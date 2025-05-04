@@ -135,7 +135,7 @@
                 </div>
 
                 <div class="text-center mt-4">
-                    <button type="submit" class="btn btn-primary btn-lg px-4" id="uploadButton">
+                    <button type="submit" class="btn btn-primary btn-lg px-4" id="uploadButton" disabled>
                         <span id="uploadButtonText">Process Report</span>
                         <span id="uploadSpinner" class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true"></span>
                     </button>
@@ -186,7 +186,12 @@
     </div>
 
     <script>
+        // Test console logging
+        console.log('Page loaded - testing console logging');
+        
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM Content Loaded');
+            
             const dropZone = document.getElementById('dropZone');
             const fileInput = document.getElementById('fileInput');
             const fileInfo = document.getElementById('fileInfo');
@@ -198,20 +203,37 @@
             const uploadButtonText = document.getElementById('uploadButtonText');
             const processingMessage = document.getElementById('processingMessage');
 
+            // Debug form elements
+            console.log('Form elements initialized:', {
+                dropZone: !!dropZone,
+                fileInput: !!fileInput,
+                fileInfo: !!fileInfo,
+                fileName: !!fileName,
+                removeFile: !!removeFile,
+                uploadForm: !!uploadForm,
+                uploadButton: !!uploadButton,
+                uploadSpinner: !!uploadSpinner,
+                uploadButtonText: !!uploadButtonText,
+                processingMessage: !!processingMessage
+            });
+
             // Handle drag and drop
             dropZone.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 dropZone.classList.add('active');
+                console.log('File dragged over drop zone');
             });
 
             dropZone.addEventListener('dragleave', () => {
                 dropZone.classList.remove('active');
+                console.log('File dragged out of drop zone');
             });
 
             dropZone.addEventListener('drop', (e) => {
                 e.preventDefault();
                 dropZone.classList.remove('active');
                 const files = e.dataTransfer.files;
+                console.log('Files dropped:', files);
                 if (files.length > 0) {
                     handleFile(files[0]);
                 }
@@ -219,10 +241,12 @@
 
             // Handle click to browse
             dropZone.addEventListener('click', () => {
+                console.log('Drop zone clicked');
                 fileInput.click();
             });
 
             fileInput.addEventListener('change', (e) => {
+                console.log('File input changed:', e.target.files);
                 if (e.target.files.length > 0) {
                     handleFile(e.target.files[0]);
                 }
@@ -230,6 +254,7 @@
 
             // Handle file removal
             removeFile.addEventListener('click', () => {
+                console.log('Remove file clicked');
                 fileInput.value = '';
                 fileInfo.style.display = 'none';
                 uploadButton.disabled = true;
@@ -237,12 +262,38 @@
 
             // Handle form submission
             uploadForm.addEventListener('submit', (e) => {
-                if (!fileInput.files.length) {
+                console.log('Form submission started');
+                const file = fileInput.files[0];
+                console.log('File in form submission:', file);
+                
+                if (!file) {
+                    console.log('No file selected in form submission');
                     e.preventDefault();
                     alert('Please select a PDF file first');
                     return;
                 }
 
+                console.log('File details:', {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size
+                });
+
+                if (file.type !== 'application/pdf') {
+                    console.log('Invalid file type:', file.type);
+                    e.preventDefault();
+                    alert('Please upload a PDF file');
+                    return;
+                }
+
+                if (file.size > 8 * 1024 * 1024) {
+                    console.log('File too large:', file.size);
+                    e.preventDefault();
+                    alert('File size exceeds 8MB limit');
+                    return;
+                }
+
+                console.log('File validation passed, proceeding with upload');
                 // Show processing message
                 processingMessage.style.display = 'block';
                 uploadButton.disabled = true;
@@ -251,20 +302,39 @@
             });
 
             function handleFile(file) {
+                console.log('Handling file:', {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size
+                });
+                
                 if (file.type !== 'application/pdf') {
+                    console.log('Invalid file type:', file.type);
                     alert('Please upload a PDF file');
                     return;
                 }
 
                 if (file.size > 8 * 1024 * 1024) {
+                    console.log('File too large:', file.size);
                     alert('File size exceeds 8MB limit');
                     return;
                 }
 
-                fileInput.files = new DataTransfer().files;
-                fileName.textContent = file.name;
-                fileInfo.style.display = 'block';
-                uploadButton.disabled = false;
+                try {
+                    // Create a new FileList object
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    fileInput.files = dataTransfer.files;
+                    console.log('File set in input:', fileInput.files[0]);
+
+                    fileName.textContent = file.name;
+                    fileInfo.style.display = 'block';
+                    uploadButton.disabled = false;
+                    console.log('File handling completed successfully');
+                } catch (error) {
+                    console.error('Error handling file:', error);
+                    alert('Error handling file. Please try again.');
+                }
             }
         });
     </script>
