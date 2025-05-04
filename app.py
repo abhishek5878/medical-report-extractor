@@ -115,7 +115,7 @@ def upload_file():
                     raise ValueError(f"Mapping file not found: {MAPPING_FILE}")
                     
                 mapping_df = pd.read_csv(MAPPING_FILE)
-                test_names = mapping_df['Thyrocare Test Name'].dropna().tolist()
+                test_names = mapping_df['Name'].dropna().tolist()
                 if not test_names:
                     raise ValueError("No test names found in mapping file")
                 logger.info(f"Loaded {len(test_names)} test names from mapping file")
