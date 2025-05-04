@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # Define paths
 MAPPING_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'true_data.csv')
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='docs', static_url_path='')
 app.secret_key = "medical_report_extractor_secret_key"
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB max upload size
@@ -62,7 +62,7 @@ def request_entity_too_large(error):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return app.send_static_file('index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_file():

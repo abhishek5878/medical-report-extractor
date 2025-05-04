@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('file', file);
 
         try {
-            const response = await fetch('https://medical-report-extractor.onrender.com/upload', {
+            const response = await fetch('/upload', {
                 method: 'POST',
                 body: formData,
                 mode: 'no-cors',
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         async function attemptUpload() {
             try {
-                const response = await fetch('https://medical-report-extractor.onrender.com/upload', {
+                const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData,
                     mode: 'no-cors',
