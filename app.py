@@ -11,7 +11,10 @@ from processors import process_report, create_validation_report
 from flask_talisman import Talisman
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -80,6 +83,7 @@ def request_entity_too_large(error):
 
 @app.route('/')
 def index():
+    logger.info("Index page accessed")
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
@@ -215,8 +219,10 @@ def upload_file():
 
 @app.route('/health')
 def health_check():
+    logger.info("Health check endpoint called")
     return jsonify({"status": "healthy"}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
+    logger.info(f"Starting application on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
