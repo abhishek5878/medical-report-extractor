@@ -89,42 +89,37 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     try:
-        logger.debug("Upload request received")
-        logger.debug(f"Request files: {request.files}")
+        logger.info("Upload request received")
         
         if 'file' not in request.files:
             logger.error("No file part in request")
-            flash('No file part in the request')
-            return redirect(url_for('index'))
+            return jsonify({'error': 'No file part in the request'}), 400
         
         file = request.files['file']
-        logger.debug(f"File received: {file.filename}")
+        logger.info(f"File received: {file.filename}")
         
         if file.filename == '':
             logger.error("No file selected")
-            flash('No file selected')
-            return redirect(url_for('index'))
+            return jsonify({'error': 'No file selected'}), 400
         
         if not allowed_file(file.filename):
             logger.error(f"Invalid file type: {file.filename}")
-            flash('Only PDF files are allowed')
-            return redirect(url_for('index'))
+            return jsonify({'error': 'Only PDF files are allowed'}), 400
         
         # Check file size before saving
         file.seek(0, os.SEEK_END)
         file_size = file.tell()
         file.seek(0)
-        logger.debug(f"File size: {file_size} bytes")
+        logger.info(f"File size: {file_size} bytes")
         
         if file_size > app.config['MAX_CONTENT_LENGTH']:
             logger.error(f"File too large: {file_size} bytes")
-            flash('File too large. Maximum size is 8MB.')
-            return redirect(url_for('index'))
+            return jsonify({'error': 'File too large. Maximum size is 8MB.'}), 413
         
         # Generate unique filename
         unique_filename = str(uuid.uuid4()) + '.pdf'
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-        logger.debug(f"Saving file to: {filepath}")
+        logger.info(f"Saving file to: {filepath}")
         
         try:
             # Save file in chunks to reduce memory usage
@@ -140,82 +135,66 @@ def upload_file():
             if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
                 raise ValueError("File was not saved correctly")
             
-            logger.debug("File saved successfully")
+            logger.info("File saved successfully")
             
-            # Load mapping to get test names
+            # Process the file
             try:
-                mapping_df = pd.read_csv(MAPPING_FILE)
-                thyrocare_tests = mapping_df['Thyrocare Test Name'].dropna().tolist()
-                if not thyrocare_tests:
-                    raise ValueError("No test names found in mapping file")
-            except Exception as e:
-                logger.error(f"Error loading test names: {str(e)}")
-                flash(f'Error loading test names: {str(e)}')
-                os.remove(filepath)
-                return redirect(url_for('index'))
-            
-            # Process the PDF with timeout
-            try:
-                results = process_report(filepath, thyrocare_tests, batch_size=10)
+                results = process_report(filepath)
                 if not results:
                     raise ValueError("No values could be extracted from the PDF")
+                
+                # Create result filename
+                result_filename = f"results_{int(time.time())}.xlsx"
+                result_path = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
+                
+                # Save results to Excel
+                results.to_excel(result_path, index=False)
+                
+                # Clean up the uploaded PDF
+                os.remove(filepath)
+                
+                return jsonify({
+                    'success': True,
+                    'filename': result_filename,
+                    'message': 'File processed successfully'
+                })
+                
             except Exception as e:
                 logger.error(f"Error processing PDF: {str(e)}")
-                flash(f'Error processing PDF: {str(e)}')
-                os.remove(filepath)
-                return redirect(url_for('index'))
-            
-            # Create result DataFrame
-            result_df = pd.DataFrame({
-                "Test Name": list(results.keys()),
-                "Value": list(results.values())
-            })
-            
-            # Generate output filename
-            output_filename = f"results_{int(time.time())}.xlsx"
-            output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-            
-            # Generate validation report
-            try:
-                create_validation_report(
-                    true_data_path=TRUE_DATA_FILE,
-                    result_df=result_df,
-                    mapping_path=MAPPING_FILE,
-                    output_excel_path=output_path
-                )
-            except Exception as e:
-                logger.error(f"Error creating validation report: {str(e)}")
-                flash(f'Error creating validation report: {str(e)}')
-                os.remove(filepath)
-                return redirect(url_for('index'))
-            
-            # Clean up the uploaded PDF
-            os.remove(filepath)
-            
-            # Return the Excel file
-            return send_file(
-                output_path,
-                as_attachment=True,
-                download_name='medical_report_results.xlsx',
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
-            
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                return jsonify({'error': f'Error processing PDF: {str(e)}'}), 500
+                
         except Exception as e:
             logger.error(f"Error saving file: {str(e)}")
-            flash(f'Error saving file: {str(e)}')
             if os.path.exists(filepath):
                 os.remove(filepath)
-            return redirect(url_for('index'))
+            return jsonify({'error': f'Error saving file: {str(e)}'}), 500
             
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
-        flash(f'Unexpected error: {str(e)}')
         if 'filepath' in locals() and os.path.exists(filepath):
             try:
                 os.remove(filepath)
             except:
                 pass
-        return redirect(url_for('index'))
+        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    try:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'File not found'}), 404
+        return send_file(
+            filepath,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception as e:
+        logger.error(f"Error downloading file: {str(e)}")
+        return jsonify({'error': f'Error downloading file: {str(e)}'}), 500
 
 @app.route('/health')
 def health_check():
