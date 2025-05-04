@@ -11,7 +11,7 @@ from processors import process_report, create_validation_report
 app = Flask(__name__)
 app.secret_key = "medical_report_extractor_secret_key"
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
+app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB max upload size
 app.config['UPLOAD_EXTENSIONS'] = ['.pdf']
 
 # Ensure upload directory exists
@@ -44,11 +44,25 @@ def upload_file():
         flash('Only PDF files are allowed')
         return redirect(url_for('index'))
     
+    # Check file size
+    file_size = request.content_length
+    if file_size and file_size > app.config['MAX_CONTENT_LENGTH']:
+        flash('File too large. Maximum size is 8MB.')
+        return redirect(url_for('index'))
+    
     try:
         # Generate unique filename
         unique_filename = str(uuid.uuid4()) + '.pdf'
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-        file.save(filepath)
+        
+        # Save file in chunks to reduce memory usage
+        chunk_size = 8192  # 8KB chunks
+        with open(filepath, 'wb') as f:
+            while True:
+                chunk = file.stream.read(chunk_size)
+                if not chunk:
+                    break
+                f.write(chunk)
         
         # Load mapping to get test names
         mapping_df = pd.read_csv(MAPPING_FILE)
@@ -56,7 +70,7 @@ def upload_file():
         
         # Process the PDF with timeout
         try:
-            results = process_report(filepath, thyrocare_tests, batch_size=50)
+            results = process_report(filepath, thyrocare_tests, batch_size=20)
         except Exception as e:
             flash(f'Error processing PDF: {str(e)}')
             os.remove(filepath)
