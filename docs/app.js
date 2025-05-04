@@ -56,47 +56,6 @@ document.addEventListener('DOMContentLoaded', function() {
         resultContainer.style.display = 'none';
     }
 
-    async function attemptUpload() {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 900000); // 15 minute timeout
-
-            const response = await fetch('/upload', {
-                method: 'POST',
-                body: formData,
-                signal: controller.signal,
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                let errorMessage = `Server error: ${response.status}`;
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.error || errorMessage;
-                } catch (e) {
-                    console.error('Error parsing error response:', e);
-                }
-                throw new Error(errorMessage);
-            }
-
-            const data = await response.json();
-            if (!data) {
-                throw new Error('No response data received from server');
-            }
-            return data;
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                throw new Error('Request timed out. The file is large and processing is taking longer than expected. Please wait and try again.');
-            }
-            console.error('Upload error:', error);
-            throw error;
-        }
-    }
-
     function handleFileUpload(formData) {
         const maxRetries = 3;
         let retryCount = 0;
@@ -108,9 +67,34 @@ document.addEventListener('DOMContentLoaded', function() {
         resultContainer.style.display = 'none';
         processButton.disabled = true;
 
-        async function attemptUpload() {
+        async function uploadWithRetry() {
             try {
-                const data = await attemptUpload();
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 900000); // 15 minute timeout
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                    signal: controller.signal,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    let errorMessage = `Server error: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || errorMessage;
+                    } catch (e) {
+                        console.error('Error parsing error response:', e);
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const data = await response.json();
                 if (!data) {
                     throw new Error('No response data received from server');
                 }
@@ -142,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (retryCount < maxRetries && error.message.includes('Server error')) {
                     retryCount++;
                     statusMessage.textContent = `Retrying upload (${retryCount}/${maxRetries})... This may take a while for large files.`;
-                    setTimeout(attemptUpload, 5000 * retryCount); // Longer delay between retries
+                    setTimeout(uploadWithRetry, 5000 * retryCount); // Longer delay between retries
                 } else {
                     showError(error.message);
                     processButton.disabled = false;
@@ -150,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        attemptUpload();
+        uploadWithRetry();
     }
 
     function showError(message) {

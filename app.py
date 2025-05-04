@@ -89,11 +89,14 @@ def upload_file():
         unique_filename = f"{int(time.time())}_{filename}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
         
-        # Save file in chunks
-        file.save(filepath)
-        
-        # Process the file
         try:
+            # Save file in chunks
+            file.save(filepath)
+            
+            # Verify file was saved
+            if not os.path.exists(filepath):
+                return jsonify({'error': 'Failed to save file'}), 500
+                
             # Get test names from mapping file
             test_names = get_test_names()
             if not test_names:
@@ -109,6 +112,12 @@ def upload_file():
             if not excel_path:
                 return jsonify({'error': 'Failed to save results'}), 500
                 
+            # Clean up the uploaded PDF
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                logger.warning(f"Failed to clean up PDF file: {str(e)}")
+                
             return jsonify({
                 'success': True,
                 'message': 'File processed successfully',
@@ -117,6 +126,12 @@ def upload_file():
             
         except Exception as e:
             logger.error(f"Error processing file: {str(e)}")
+            # Clean up the uploaded PDF if it exists
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except:
+                    pass
             return jsonify({'error': f'Error processing file: {str(e)}'}), 500
             
     except Exception as e:
