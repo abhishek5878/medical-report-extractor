@@ -5,7 +5,7 @@ services:
     buildCommand: |
       pip install -r requirements.txt
       cp nginx.conf /etc/nginx/conf.d/custom.conf
-    startCommand: gunicorn app:app --timeout 300 --workers 1 --threads 1 --max-requests 1 --max-requests-jitter 1
+    startCommand: gunicorn app:app --timeout 600 --workers 1 --threads 1 --max-requests 1 --max-requests-jitter 1 --preload
     envVars:
       - key: OPENAI_API_KEY
         sync: false
