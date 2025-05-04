@@ -24,7 +24,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+api_key = os.getenv('OPENAI_API_KEY')
+if not api_key:
+    logger.error("OPENAI_API_KEY environment variable is not set")
+    client = None
+else:
+    client = OpenAI(api_key=api_key)
 
 class PDFRepairEngine:
     """Class to handle PDF repair and preprocessing"""
