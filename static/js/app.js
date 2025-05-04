@@ -12,19 +12,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize status message
     statusMessage.style.display = 'block';
 
+    // Click handler for drop zone
+    dropZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
     // Drag and drop handlers
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         dropZone.classList.add('active');
     });
 
-    dropZone.addEventListener('dragleave', () => {
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         dropZone.classList.remove('active');
     });
 
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         dropZone.classList.remove('active');
+        
         const files = e.dataTransfer.files;
         if (files.length) {
             fileInput.files = files;
