@@ -64,8 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('https://medical-report-extractor.onrender.com/upload', {
                 method: 'POST',
                 body: formData,
-                mode: 'cors',
-                credentials: 'same-origin',
+                mode: 'no-cors',
                 headers: {
                     'Accept': 'application/json'
                 }
@@ -106,8 +105,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await fetch('https://medical-report-extractor.onrender.com/upload', {
                     method: 'POST',
                     body: formData,
-                    mode: 'cors',
-                    credentials: 'same-origin',
+                    mode: 'no-cors',
                     headers: {
                         'Accept': 'application/json'
                     }

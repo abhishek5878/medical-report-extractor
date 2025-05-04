@@ -35,7 +35,7 @@ CORS(app, resources={
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Accept", "Origin", "X-Requested-With"],
         "expose_headers": ["Content-Type", "Content-Length"],
-        "supports_credentials": True,
+        "supports_credentials": False,
         "max_age": 3600
     }
 })
@@ -246,7 +246,7 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', 'https://abhishek5878.github.io')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Accept')
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers.add('Access-Control-Allow-Credentials', 'false')
     return response
 
 if __name__ == '__main__':
