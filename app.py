@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify
 import os
 import tempfile
 import uuid
@@ -35,98 +35,112 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files:
-        flash('No file part')
-        return redirect(url_for('index'))
-    
-    file = request.files['file']
-    
-    if file.filename == '':
-        flash('No selected file')
-        return redirect(url_for('index'))
-    
-    if not allowed_file(file.filename):
-        flash('Only PDF files are allowed')
-        return redirect(url_for('index'))
-    
     try:
+        if 'file' not in request.files:
+            flash('No file part in the request')
+            return redirect(url_for('index'))
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            flash('No file selected')
+            return redirect(url_for('index'))
+        
+        if not allowed_file(file.filename):
+            flash('Only PDF files are allowed')
+            return redirect(url_for('index'))
+        
+        # Check file size before saving
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > app.config['MAX_CONTENT_LENGTH']:
+            flash('File too large. Maximum size is 8MB.')
+            return redirect(url_for('index'))
+        
         # Generate unique filename
         unique_filename = str(uuid.uuid4()) + '.pdf'
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
         
-        # Save file in chunks to reduce memory usage
-        chunk_size = 8192  # 8KB chunks
-        total_size = 0
-        with open(filepath, 'wb') as f:
-            while True:
-                chunk = file.stream.read(chunk_size)
-                if not chunk:
-                    break
-                total_size += len(chunk)
-                if total_size > app.config['MAX_CONTENT_LENGTH']:
-                    os.remove(filepath)
-                    flash('File too large. Maximum size is 8MB.')
-                    return redirect(url_for('index'))
-                f.write(chunk)
-        
-        # Load mapping to get test names
         try:
-            mapping_df = pd.read_csv(MAPPING_FILE)
-            thyrocare_tests = mapping_df['Thyrocare Test Name'].dropna().tolist()
-            if not thyrocare_tests:
-                raise ValueError("No test names found in mapping file")
-        except Exception as e:
-            flash(f'Error loading test names: {str(e)}')
+            # Save file in chunks to reduce memory usage
+            chunk_size = 8192  # 8KB chunks
+            with open(filepath, 'wb') as f:
+                while True:
+                    chunk = file.stream.read(chunk_size)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+            
+            # Verify file was saved correctly
+            if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+                raise ValueError("File was not saved correctly")
+            
+            # Load mapping to get test names
+            try:
+                mapping_df = pd.read_csv(MAPPING_FILE)
+                thyrocare_tests = mapping_df['Thyrocare Test Name'].dropna().tolist()
+                if not thyrocare_tests:
+                    raise ValueError("No test names found in mapping file")
+            except Exception as e:
+                flash(f'Error loading test names: {str(e)}')
+                os.remove(filepath)
+                return redirect(url_for('index'))
+            
+            # Process the PDF with timeout
+            try:
+                results = process_report(filepath, thyrocare_tests, batch_size=10)
+                if not results:
+                    raise ValueError("No values could be extracted from the PDF")
+            except Exception as e:
+                flash(f'Error processing PDF: {str(e)}')
+                os.remove(filepath)
+                return redirect(url_for('index'))
+            
+            # Create result DataFrame
+            result_df = pd.DataFrame({
+                "Test Name": list(results.keys()),
+                "Value": list(results.values())
+            })
+            
+            # Generate output filename
+            output_filename = f"results_{int(time.time())}.xlsx"
+            output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+            
+            # Generate validation report
+            try:
+                create_validation_report(
+                    true_data_path=TRUE_DATA_FILE,
+                    result_df=result_df,
+                    mapping_path=MAPPING_FILE,
+                    output_excel_path=output_path
+                )
+            except Exception as e:
+                flash(f'Error creating validation report: {str(e)}')
+                os.remove(filepath)
+                return redirect(url_for('index'))
+            
+            # Clean up the uploaded PDF
             os.remove(filepath)
-            return redirect(url_for('index'))
-        
-        # Process the PDF with timeout
-        try:
-            results = process_report(filepath, thyrocare_tests, batch_size=20)
-            if not results:
-                raise ValueError("No values could be extracted from the PDF")
-        except Exception as e:
-            flash(f'Error processing PDF: {str(e)}')
-            os.remove(filepath)
-            return redirect(url_for('index'))
-        
-        # Create result DataFrame
-        result_df = pd.DataFrame({
-            "Test Name": list(results.keys()),
-            "Value": list(results.values())
-        })
-        
-        # Generate output filename
-        output_filename = f"results_{int(time.time())}.xlsx"
-        output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-        
-        # Generate validation report
-        try:
-            create_validation_report(
-                true_data_path=TRUE_DATA_FILE,
-                result_df=result_df,
-                mapping_path=MAPPING_FILE,
-                output_excel_path=output_path
+            
+            # Return the Excel file
+            return send_file(
+                output_path,
+                as_attachment=True,
+                download_name='medical_report_results.xlsx',
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
+            
         except Exception as e:
-            flash(f'Error creating validation report: {str(e)}')
-            os.remove(filepath)
+            flash(f'Error saving file: {str(e)}')
+            if os.path.exists(filepath):
+                os.remove(filepath)
             return redirect(url_for('index'))
-        
-        # Clean up the uploaded PDF
-        os.remove(filepath)
-        
-        # Return the Excel file
-        return send_file(
-            output_path,
-            as_attachment=True,
-            download_name='medical_report_results.xlsx',
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
-        
+            
     except Exception as e:
-        flash(f'Error processing file: {str(e)}')
-        if 'filepath' in locals():
+        flash(f'Unexpected error: {str(e)}')
+        if 'filepath' in locals() and os.path.exists(filepath):
             try:
                 os.remove(filepath)
             except:
