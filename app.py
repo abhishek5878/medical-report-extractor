@@ -68,6 +68,54 @@ def request_entity_too_large(error):
 def index():
     return app.send_static_file('index.html')
 
+def get_test_names():
+    """Load test names from the mapping file"""
+    try:
+        if not os.path.exists(MAPPING_FILE):
+            logger.error(f"Mapping file not found: {MAPPING_FILE}")
+            return None
+            
+        mapping_df = pd.read_csv(MAPPING_FILE)
+        test_names = mapping_df['Name'].dropna().tolist()
+        
+        if not test_names:
+            logger.error("No test names found in mapping file")
+            return None
+            
+        logger.info(f"Loaded {len(test_names)} test names from mapping file")
+        return test_names
+        
+    except Exception as e:
+        logger.error(f"Error loading test names: {str(e)}")
+        return None
+
+def save_results_to_excel(results, filename):
+    """Save results to Excel file"""
+    try:
+        # Create result DataFrame
+        result_df = pd.DataFrame({
+            "Test Name": list(results.keys()),
+            "Value": list(results.values())
+        })
+        
+        # Create result filename
+        result_filename = f"results_{filename}"
+        result_path = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
+        
+        # Save to Excel
+        result_df.to_excel(result_path, index=False)
+        
+        # Verify file was saved
+        if not os.path.exists(result_path):
+            logger.error(f"Failed to save results file: {result_path}")
+            return None
+            
+        return result_path
+        
+    except Exception as e:
+        logger.error(f"Error saving results to Excel: {str(e)}")
+        return None
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     try:
