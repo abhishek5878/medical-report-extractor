@@ -1,16 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const dropZone = document.querySelector('.drop-zone');
+    const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
-    const uploadForm = document.getElementById('uploadForm');
-    const progressContainer = document.querySelector('.progress-container');
-    const progressBar = document.querySelector('.progress-bar');
     const statusMessage = document.getElementById('statusMessage');
     const resultContainer = document.getElementById('resultContainer');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const validationReportBtn = document.getElementById('validationReportBtn');
-
-    // Initialize status message
-    statusMessage.style.display = 'block';
+    const API_URL = 'https://medical-report-extractor.onrender.com'; // Your Render backend URL
 
     // Click handler for drop zone
     dropZone.addEventListener('click', () => {
@@ -55,82 +48,23 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         statusMessage.textContent = `Selected file: ${file.name}`;
-        statusMessage.className = 'alert alert-info';
-    }
-
-    // Form submission handler
-    uploadForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(uploadForm);
-        
-        if (!fileInput.files.length) {
-            showError('Please select a PDF file first');
-            return;
-        }
-
-        try {
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-            progressBar.setAttribute('aria-valuenow', 0);
-            statusMessage.textContent = 'Uploading file...';
-            statusMessage.className = 'alert alert-info';
-
-            const response = await fetch('/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            
-            if (result.error) {
-                throw new Error(result.error);
-            }
-
-            progressBar.style.width = '100%';
-            progressBar.setAttribute('aria-valuenow', 100);
-            statusMessage.textContent = 'File processed successfully!';
-            statusMessage.className = 'alert alert-success';
-            
-            // Show result container
-            resultContainer.style.display = 'block';
-            downloadBtn.href = `/download/${result.filename}`;
-            if (result.validation_report) {
-                validationReportBtn.href = `/download/${result.validation_report}`;
-                validationReportBtn.style.display = 'inline-block';
-            } else {
-                validationReportBtn.style.display = 'none';
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            showError(error.message || 'An error occurred while processing the file');
-        }
-    });
-
-    function showError(message) {
-        statusMessage.textContent = message;
-        statusMessage.className = 'alert alert-danger';
-        progressContainer.style.display = 'none';
+        statusMessage.className = 'status-message';
+        statusMessage.style.display = 'block';
         resultContainer.style.display = 'none';
     }
 
     function handleFileUpload(formData) {
-        const statusMessage = document.getElementById('statusMessage');
-        const resultContainer = document.getElementById('resultContainer');
         const maxRetries = 3;
         let retryCount = 0;
 
         // Show loading state
         statusMessage.textContent = 'Processing file...';
         statusMessage.className = 'status-message processing';
+        statusMessage.style.display = 'block';
         resultContainer.style.display = 'none';
 
         function attemptUpload() {
-            fetch('/upload', {
+            fetch(`${API_URL}/upload`, {
                 method: 'POST',
                 body: formData
             })
@@ -160,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Show download link
                     const downloadLink = document.createElement('a');
-                    downloadLink.href = `/download/${data.filename}`;
+                    downloadLink.href = `${API_URL}/download/${data.filename}`;
                     downloadLink.textContent = 'Download Results';
                     downloadLink.className = 'download-button';
                     downloadLink.download = data.filename;
@@ -179,13 +113,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     statusMessage.textContent = `Retrying upload (${retryCount}/${maxRetries})...`;
                     setTimeout(attemptUpload, 2000 * retryCount); // Exponential backoff
                 } else {
-                    statusMessage.textContent = `Error: ${error.message}`;
-                    statusMessage.className = 'status-message error';
-                    resultContainer.style.display = 'none';
+                    showError(error.message);
                 }
             });
         }
 
         attemptUpload();
     }
+
+    function showError(message) {
+        statusMessage.textContent = `Error: ${message}`;
+        statusMessage.className = 'status-message error';
+        statusMessage.style.display = 'block';
+        resultContainer.style.display = 'none';
+    }
+
+    // Form submission handler
+    document.getElementById('uploadForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData();
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            showError('Please select a PDF file first');
+            return;
+        }
+        
+        formData.append('file', file);
+        handleFileUpload(formData);
+    });
 }); 
