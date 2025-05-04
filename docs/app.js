@@ -56,19 +56,21 @@ document.addEventListener('DOMContentLoaded', function() {
         resultContainer.style.display = 'none';
     }
 
-    async function attemptUpload(file) {
-        const formData = new FormData();
-        formData.append('file', file);
-
+    async function attemptUpload() {
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+
             const response = await fetch('/upload', {
                 method: 'POST',
                 body: formData,
-                mode: 'no-cors',
+                signal: controller.signal,
                 headers: {
                     'Accept': 'application/json'
                 }
             });
+
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 let errorMessage = `Server error: ${response.status}`;
@@ -84,6 +86,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             return data;
         } catch (error) {
+            if (error.name === 'AbortError') {
+                throw new Error('Request timed out. Please try again with a smaller file.');
+            }
             console.error('Upload error:', error);
             throw error;
         }
@@ -102,34 +107,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         async function attemptUpload() {
             try {
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData,
-                    mode: 'no-cors',
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    let errorMessage = `Server error: ${response.status}`;
-                    try {
-                        const errorData = await response.json();
-                        errorMessage = errorData.error || errorMessage;
-                    } catch (e) {
-                        console.error('Error parsing error response:', e);
-                    }
-                    throw new Error(errorMessage);
-                }
-
-                const data = await response.json();
+                const data = await attemptUpload();
                 if (data.success) {
                     statusMessage.textContent = 'File processed successfully!';
                     statusMessage.className = 'status-message success';
                     
                     // Show download link
                     const downloadLink = document.createElement('a');
-                    downloadLink.href = `https://medical-report-extractor.onrender.com/download/${data.filename}`;
+                    downloadLink.href = `/download/${data.filename}`;
                     downloadLink.textContent = 'Download Results';
                     downloadLink.className = 'download-button';
                     downloadLink.target = '_blank';

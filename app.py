@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify, g
 import os
 import tempfile
 import uuid
@@ -11,6 +11,7 @@ from processors import process_report, create_validation_report
 from flask_talisman import Talisman
 from flask_cors import CORS
 import signal
+from datetime import timedelta
 
 # Configure logging
 logging.basicConfig(
@@ -27,6 +28,9 @@ app.secret_key = "medical_report_extractor_secret_key"
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB max upload size
 app.config['UPLOAD_EXTENSIONS'] = ['.pdf']
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
+app.config['TIMEOUT'] = 300  # 5 minutes timeout
 
 # Configure CORS with more permissive settings
 CORS(app, resources={
@@ -241,12 +245,25 @@ def download_file(filename):
 def health_check():
     return jsonify({'status': 'healthy'})
 
+@app.before_request
+def before_request():
+    g.start = time.time()
+
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', 'https://abhishek5878.github.io')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Accept')
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'false')
+    
+    # Add timeout header
+    response.headers.add('X-Timeout', str(app.config['TIMEOUT']))
+    
+    # Log request time
+    if hasattr(g, 'start'):
+        elapsed = time.time() - g.start
+        logger.info(f"Request took {elapsed:.2f} seconds")
+    
     return response
 
 if __name__ == '__main__':
