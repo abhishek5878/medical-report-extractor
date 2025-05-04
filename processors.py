@@ -1,14 +1,19 @@
 import os
 import re
 import time
-import json
+import fitz  # PyMuPDF
+import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import pdfplumber
 import pytesseract
+from PIL import Image, ImageEnhance
+import io
+import tempfile
+import subprocess
 import pandas as pd
-from PIL import Image
 from typing import Dict, List, Optional, Tuple
-from concurrent.futures import ThreadPoolExecutor
-import openai
+import json
+from openai import OpenAI
 import logging
 
 # Configure logging
@@ -17,6 +22,354 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+class PDFRepairEngine:
+    """Class to handle PDF repair and preprocessing"""
+    
+    @staticmethod
+    def repair_with_pikepdf(pdf_path: str) -> str:
+        """Attempt to repair corrupted PDF files using pikepdf"""
+        try:
+            from pikepdf import Pdf
+            repaired_path = pdf_path.replace('.pdf', '_repaired_pike.pdf')
+            
+            with Pdf.open(pdf_path, allow_overwriting_input=True) as pdf:
+                pdf.save(repaired_path)
+                
+            return repaired_path
+        except Exception as e:
+            logger.error(f"PikePDF repair failed: {e}")
+            return pdf_path
+    
+    @staticmethod
+    def repair_with_ghostscript(pdf_path: str) -> str:
+        """Attempt to repair PDF using Ghostscript"""
+        try:
+            repaired_path = pdf_path.replace('.pdf', '_repaired_gs.pdf')
+            # Install ghostscript if not already installed
+            try:
+                subprocess.run(["which", "gs"], check=True, capture_output=True)
+            except subprocess.CalledProcessError:
+                subprocess.run(["sudo", "apt-get", "install", "-y", "ghostscript"], check=True)
+                
+            # Use Ghostscript to create a clean copy
+            subprocess.run([
+                "gs", 
+                "-o", repaired_path,
+                "-sDEVICE=pdfwrite", 
+                "-dPDFSETTINGS=/prepress",
+                pdf_path
+            ], check=True)
+            
+            return repaired_path
+        except Exception as e:
+            logger.error(f"Ghostscript repair failed: {e}")
+            return pdf_path
+    
+    @staticmethod
+    def repair_with_mutool(pdf_path: str) -> str:
+        """Attempt to repair PDF using MuTool (part of MuPDF)"""
+        try:
+            repaired_path = pdf_path.replace('.pdf', '_repaired_mutool.pdf')
+            # Install mupdf-tools if not already installed
+            try:
+                subprocess.run(["which", "mutool"], check=True, capture_output=True)
+            except subprocess.CalledProcessError:
+                subprocess.run(["sudo", "apt-get", "install", "-y", "mupdf-tools"], check=True)
+                
+            # Use mutool to clean the PDF
+            subprocess.run([
+                "mutool", "clean",
+                pdf_path,
+                repaired_path
+            ], check=True)
+            
+            return repaired_path
+        except Exception as e:
+            logger.error(f"MuTool repair failed: {e}")
+            return pdf_path
+    
+    @classmethod
+    def full_repair_pipeline(cls, pdf_path: str) -> List[str]:
+        """Run all repair methods and return list of repaired PDFs"""
+        repaired_paths = [pdf_path]  # Include original as fallback
+        
+        # Try all repair methods
+        repair_methods = [
+            cls.repair_with_pikepdf,
+            cls.repair_with_ghostscript, 
+            cls.repair_with_mutool
+        ]
+        
+        for repair_method in repair_methods:
+            try:
+                repaired_path = repair_method(pdf_path)
+                if os.path.exists(repaired_path) and os.path.getsize(repaired_path) > 0:
+                    repaired_paths.append(repaired_path)
+            except Exception as e:
+                logger.error(f"Repair method failed: {e}")
+                
+        return repaired_paths
+
+class EnhancedPDFExtractor:
+    """Class for extracting text from PDFs with multiple fallback methods"""
+    
+    @staticmethod
+    def preprocess_image(img: Image.Image) -> Image.Image:
+        """Enhance image for better OCR results"""
+        # Convert to grayscale
+        img = img.convert('L')
+        
+        # Enhance contrast
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(2.0)
+        
+        # Enhance sharpness
+        enhancer = ImageEnhance.Sharpness(img)
+        img = enhancer.enhance(2.0)
+        
+        return img
+    
+    @staticmethod
+    def extract_text_from_image(img: Image.Image) -> str:
+        """Extract text from an image using advanced OCR settings"""
+        try:
+            # Preprocess the image
+            img = EnhancedPDFExtractor.preprocess_image(img)
+            
+            # Run OCR with multiple configurations and take the best result
+            configs = [
+                '--psm 6',  # Assume single uniform block of text
+                '--psm 3',  # Fully automatic page segmentation
+                '--psm 4'   # Assume single column of text
+            ]
+            
+            results = []
+            for config in configs:
+                text = pytesseract.image_to_string(
+                    img,
+                    config = f'{config} -c tessedit_char_whitelist="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,:;/\\-_+=()[]{{}}"')
+                results.append(text)
+            
+            # Choose the result with the most content
+            return max(results, key=len)
+        
+        except Exception as e:
+            logger.error(f"Image OCR error: {e}")
+            return ""
+    
+    @staticmethod
+    def extract_page_with_pdfplumber(page, page_num: int) -> str:
+        """Extract text from a page using pdfplumber"""
+        try:
+            text = page.extract_text() or ""
+            if len(text.strip()) > 10:
+                return text
+                
+            # If text extraction fails, try OCR on the page image
+            img = page.to_image(resolution=300).original
+            text = EnhancedPDFExtractor.extract_text_from_image(img)
+            return text
+        except Exception as e:
+            logger.error(f"pdfplumber error on page {page_num}: {e}")
+            return ""
+    
+    @staticmethod
+    def extract_page_with_pymupdf(doc, page_num: int) -> str:
+        """Extract text from a page using PyMuPDF"""
+        try:
+            page = doc[page_num-1]
+            
+            # First try native text extraction
+            text = page.get_text()
+            if len(text.strip()) > 10:
+                return text
+                
+            # If that fails, render to image and use OCR
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better OCR
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            text = EnhancedPDFExtractor.extract_text_from_image(img)
+            return text
+        except Exception as e:
+            logger.error(f"PyMuPDF error on page {page_num}: {e}")
+            return ""
+    
+    @staticmethod
+    def extract_page_with_tesseract(doc, page_num: int) -> str:
+        """Extract text from a page using direct Tesseract OCR as last resort"""
+        try:
+            # Get page and render to image at higher resolution
+            page = doc[page_num-1]
+            pix = page.get_pixmap(matrix=fitz.Matrix(3, 3))  # 3x zoom for better OCR
+            
+            # Save to temporary file (sometimes works better than in-memory)
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                pix.save(tmp.name)
+                
+            # Run OCR with multiple configurations
+            img = Image.open(tmp.name)
+            text = EnhancedPDFExtractor.extract_text_from_image(img)
+            
+            # Clean up
+            os.unlink(tmp.name)
+            
+            return text
+        except Exception as e:
+            logger.error(f"Tesseract direct OCR error on page {page_num}: {e}")
+            return ""
+    
+    @staticmethod
+    def extract_page_text(page, page_num: int, pdf_path: str) -> str:
+        """Extract text from a single PDF page with multiple fallback methods"""
+        result_text = ""
+        
+        # Method 1: pdfplumber
+        text = EnhancedPDFExtractor.extract_page_with_pdfplumber(page, page_num)
+        if len(text.strip()) > 10:
+            result_text = text
+        
+        # Method 2: PyMuPDF if pdfplumber fails
+        if not result_text:
+            try:
+                doc = fitz.open(page.pdf.stream)
+                text = EnhancedPDFExtractor.extract_page_with_pymupdf(doc, page_num)
+                if text:
+                    result_text = text
+                doc.close()
+            except Exception as e:
+                logger.error(f"PyMuPDF fallback failed for page {page_num}: {e}")
+        
+        # Method 3: Direct Tesseract as last resort
+        if not result_text:
+            try:
+                doc = fitz.open(page.pdf.stream)
+                text = EnhancedPDFExtractor.extract_page_with_tesseract(doc, page_num)
+                if text:
+                    result_text = text
+                doc.close()
+            except Exception as e:
+                logger.error(f"Tesseract fallback failed for page {page_num}: {e}")
+        
+        # If all methods fail, return error message
+        if not result_text.strip():
+            return f"--- PAGE {page_num} ---\n[TEXT EXTRACTION FAILED]"
+        
+        return f"--- PAGE {page_num} ---\n{result_text.strip()}"
+    
+    @staticmethod
+    def extract_text_with_pdfplumber(pdf_path: str, max_workers: int = 4) -> str:
+        """Extract text using pdfplumber with parallel processing"""
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                # Process pages in parallel
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = [
+                        executor.submit(
+                            EnhancedPDFExtractor.extract_page_text, 
+                            page, 
+                            i+1,
+                            pdf_path
+                        )
+                        for i, page in enumerate(pdf.pages)
+                    ]
+                    results = [future.result() for future in futures]
+                
+            return "\n\n".join(results)
+        except Exception as e:
+            logger.error(f"pdfplumber extraction failed completely: {e}")
+            return ""
+    
+    @staticmethod
+    def extract_text_with_pymupdf(pdf_path: str) -> str:
+        """Extract text using PyMuPDF as fallback"""
+        try:
+            doc = fitz.open(pdf_path)
+            results = []
+            
+            for page_num, page in enumerate(doc, 1):
+                # Try native text extraction first
+                text = page.get_text()
+                
+                # If little or no text, try OCR
+                if len(text.strip()) < 10:
+                    try:
+                        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                        text = EnhancedPDFExtractor.extract_text_from_image(img)
+                    except Exception as e:
+                        logger.error(f"PyMuPDF page {page_num} OCR failed: {e}")
+                
+                results.append(f"--- PAGE {page_num} ---\n{text.strip()}")
+            
+            doc.close()
+            return "\n\n".join(results)
+        except Exception as e:
+            logger.error(f"PyMuPDF extraction failed completely: {e}")
+            return ""
+    
+    @staticmethod
+    def ocr_pdf_with_tesseract(pdf_path: str) -> str:
+        """Direct OCR of all PDF pages as last resort method"""
+        try:
+            doc = fitz.open(pdf_path)
+            results = []
+            
+            for page_num, page in enumerate(doc, 1):
+                logger.info(f"Processing page {page_num} with direct OCR...")
+                pix = page.get_pixmap(matrix=fitz.Matrix(3, 3))  # Higher resolution
+                
+                # Save to temporary file (sometimes works better than in-memory)
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                    pix.save(tmp.name)
+                    
+                # Open with PIL and enhance
+                img = Image.open(tmp.name)
+                img = EnhancedPDFExtractor.preprocess_image(img)
+                
+                # OCR with multiple settings
+                text = EnhancedPDFExtractor.extract_text_from_image(img)
+                results.append(f"--- PAGE {page_num} ---\n{text.strip()}")
+                
+                # Clean up
+                os.unlink(tmp.name)
+            
+            doc.close()
+            return "\n\n".join(results)
+        except Exception as e:
+            logger.error(f"Direct OCR method failed completely: {e}")
+            return ""
+    
+    @classmethod
+    def extract_pdf_text(cls, pdf_path: str, max_workers: int = 4) -> str:
+        """Extract text from PDF with multiple fallback methods"""
+        logger.info(f"Starting text extraction from: {pdf_path}")
+        
+        # Try multiple methods in order of preference
+        extraction_methods = [
+            (cls.extract_text_with_pdfplumber, {"pdf_path": pdf_path, "max_workers": max_workers}),
+            (cls.extract_text_with_pymupdf, {"pdf_path": pdf_path}),
+            (cls.ocr_pdf_with_tesseract, {"pdf_path": pdf_path})
+        ]
+        
+        for method, params in extraction_methods:
+            try:
+                logger.info(f"Trying extraction method: {method.__name__}")
+                text = method(**params)
+                
+                # Check if extraction was successful
+                if text and len(text.strip()) > 100:
+                    logger.info(f"Successful extraction with {method.__name__}")
+                    return text
+                else:
+                    logger.warning(f"Method {method.__name__} returned insufficient text")
+            except Exception as e:
+                logger.error(f"Method {method.__name__} failed: {e}")
+                traceback.print_exc()
+        
+        return "[PDF TEXT EXTRACTION FAILED WITH ALL METHODS]"
 
 # Initialize OpenAI client with environment variable
 api_key = os.environ.get("OPENAI_API_KEY")
@@ -100,7 +453,7 @@ def extract_pdf_text(pdf_path: str, max_workers: int = 1) -> str:
 
 # Optimized AI Value Extraction
 class BatchReportValueExtractor:
-    def __init__(self, model: str = "gpt-4o"):
+    def __init__(self, model: str = "gpt-4-turbo"):
         self.model = model
         self.system_prompt = """You are a medical report analysis expert tasked with extracting lab test values from medical reports.
 
@@ -122,7 +475,7 @@ Example output:
   "ALT": null
 }"""
 
-    def extract_values_batch(self, test_names: List[str], report_text: str, batch_size: int = 50) -> Dict[str, Optional[str]]:
+    def extract_values_batch(self, test_names: List[str], report_text: str, batch_size: int = 40) -> Dict[str, Optional[str]]:
         """Extract values for all tests in batches to handle large test lists"""
         all_results = {}
 
@@ -147,7 +500,7 @@ Example output:
 {test_list}
 
 Report Text:
-{report_text[:80000]}"""  # Limit text to avoid token limits
+{report_text[:80000]}"""  # Limit context to avoid token limits
 
         try:
             response = client.chat.completions.create(
@@ -164,12 +517,12 @@ Report Text:
             results = json.loads(response.choices[0].message.content)
             return results
         except Exception as e:
-            print(f"API Error: {e}")
+            logger.error(f"API Error: {e}")
             # Return empty results for the batch on error
             return {test: None for test in test_names}
 
 # Chunking for large documents
-def chunk_document(text: str, max_chunk_size: int = 70000) -> List[str]:
+def chunk_document(text, max_chunk_size=70000):
     """Split document into chunks if it exceeds API context window"""
     if len(text) <= max_chunk_size:
         return [text]
@@ -209,11 +562,9 @@ def process_report(pdf_path: str, test_names: list, batch_size: int = 5) -> Dict
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
         
-        openai.api_key = api_key
-        
         # Extract text from PDF
         logger.info(f"Extracting text from PDF: {pdf_path}")
-        text = extract_pdf_text(pdf_path, max_workers=1)
+        text = EnhancedPDFExtractor.extract_pdf_text(pdf_path, max_workers=1)
         
         if not text:
             raise ValueError("No text could be extracted from the PDF")
@@ -222,40 +573,36 @@ def process_report(pdf_path: str, test_names: list, batch_size: int = 5) -> Dict
         chunks = chunk_document(text, max_chunk_size=15000)
         logger.info(f"Document split into {len(chunks)} chunks")
         
-        results = {}
+        # Initialize value extractor
+        extractor = BatchReportValueExtractor()
+        
+        # Process each chunk
+        all_results = {}
         for i, chunk in enumerate(chunks, 1):
             logger.info(f"Processing chunk {i}/{len(chunks)}")
             logger.info(f"Chunk size: {len(chunk)} characters")
             
             try:
-                # Use the correct method for OpenAI v0.28.1
-                response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "system", "content": "You are a medical report analyzer. Extract test values from the given text."},
-                        {"role": "user", "content": f"Extract values for these tests from the following text: {test_names}\n\nText: {chunk}"}
-                    ],
-                    temperature=0.1,
-                    max_tokens=1000
-                )
+                # Extract values for this chunk
+                chunk_results = extractor.extract_values_batch(test_names, chunk, batch_size)
                 
-                # Process the response
-                if response and 'choices' in response and len(response['choices']) > 0:
-                    content = response['choices'][0]['message']['content']
-                    # Parse the content and update results
-                    # ... rest of the processing code ...
+                # Merge results, prioritizing non-null values
+                for test, value in chunk_results.items():
+                    if value is not None or test not in all_results:
+                        all_results[test] = value
+                        
             except Exception as e:
-                print(f"Error processing chunk {i}: {str(e)}")
+                logger.error(f"Error processing chunk {i}: {str(e)}")
                 continue
 
         # Fill in any missing tests
         for test in test_names:
-            if test not in results:
-                results[test] = None
+            if test not in all_results:
+                all_results[test] = None
 
-        return results
+        return all_results
     except Exception as e:
-        print(f"Error processing report: {str(e)}")
+        logger.error(f"Error processing report: {str(e)}")
         raise
 
 # Value normalization functions
@@ -311,7 +658,7 @@ def normalize_value(value):
 
 # Results validation function
 def create_validation_report(true_data_path, result_df, mapping_path, output_excel_path):
-    """Create Excel validation report comparing extracted values with true values"""
+    """Create validation report comparing extracted values to true values"""
     # Load data
     true_df = pd.read_csv(true_data_path)
     mapping_df = pd.read_csv(mapping_path)
@@ -338,9 +685,19 @@ def create_validation_report(true_data_path, result_df, mapping_path, output_exc
 
     # Handle merged columns correctly
     merged['Extracted_Value'] = merged['Value_y'].fillna('Not Found')
-    merged['True_Value'] = merged['Value_x']  # Original true values
+    merged['True_Value'] = merged['Value_x']
 
     # Normalize values for comparison
+    def normalize_value(value):
+        if pd.isna(value) or value in ['Not Found', 'nan', 'NaN']:
+            return None
+        try:
+            # Remove units and special characters
+            cleaned = re.sub(r'[^0-9.<≥≤-]', '', str(value))
+            return float(cleaned) if cleaned else None
+        except:
+            return str(value).strip().upper()
+
     merged['True_Normalized'] = merged['True_Value'].apply(normalize_value)
     merged['Extracted_Normalized'] = merged['Extracted_Value'].apply(normalize_value)
 
@@ -356,33 +713,8 @@ def create_validation_report(true_data_path, result_df, mapping_path, output_exc
         'True_Value', 'Extracted_Value', 'Match', 'Test Name'
     ]]
 
-    # Create styled Excel output
-    with pd.ExcelWriter(output_excel_path, engine='xlsxwriter') as writer:
-        final_df.to_excel(writer, sheet_name='Validation Report', index=False)
-        
-        # Get workbook and worksheet
-        workbook = writer.book
-        worksheet = writer.sheets['Validation Report']
-        
-        # Define formats
-        match_format = workbook.add_format({'bg_color': '#c6efce'})
-        mismatch_format = workbook.add_format({'bg_color': '#ffc7ce'})
-        
-        # Apply conditional formatting
-        for row in range(1, len(final_df) + 1):
-            match_value = final_df.iloc[row-1]['Match']
-            if match_value:
-                worksheet.set_row(row, None, match_format)
-            else:
-                worksheet.set_row(row, None, mismatch_format)
-
-        # Auto-adjust columns
-        for idx, col in enumerate(final_df.columns):
-            max_len = max((
-                final_df[col].astype(str).map(len).max(),
-                len(str(col))
-            )) + 2
-            worksheet.set_column(idx, idx, max_len)
-
-    print(f"Validation report saved to {output_excel_path}")
-    return output_excel_path 
+    # Save to Excel
+    final_df.to_excel(output_excel_path, index=False)
+    logger.info(f"Validation report saved to {output_excel_path}")
+    
+    return final_df 

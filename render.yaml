@@ -3,16 +3,25 @@ services:
     name: medical-report-extractor
     env: python
     buildCommand: |
-      apt-get update && apt-get install -y tesseract-ocr
       pip install -r requirements.txt
-    startCommand: gunicorn app:app --timeout 900 --workers 1 --threads 1 --worker-class gthread --max-requests 1 --max-requests-jitter 1
+      apt-get update && apt-get install -y tesseract-ocr
+    startCommand: |
+      gunicorn app:app --timeout 900 --workers 1 --threads 1 --worker-class gthread --max-requests 1 --max-requests-jitter 1 --log-level debug
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
       - key: OPENAI_API_KEY
-        fromService:
-          name: openai
-          type: secret
+        fromService: openai-api-key
+      - key: FLASK_ENV
+        value: production
+      - key: MAX_CONTENT_LENGTH
+        value: 16777216  # 16MB max file size
+      - key: UPLOAD_FOLDER
+        value: /tmp/uploads
+      - key: ALLOWED_EXTENSIONS
+        value: pdf
+      - key: MAPPING_FILE
+        value: data/true_data.csv
     plan: free
     healthCheckPath: /health
     autoDeploy: true 

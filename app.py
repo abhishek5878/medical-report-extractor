@@ -127,61 +127,54 @@ def upload_file():
             return jsonify({'error': 'No selected file'}), 400
             
         if not allowed_file(file.filename):
-            return jsonify({'error': 'Only PDF files are allowed'}), 400
+            return jsonify({'error': 'File type not allowed'}), 400
             
-        if file.content_length > app.config['MAX_CONTENT_LENGTH']:
-            return jsonify({'error': f'File too large. Maximum size is {app.config["MAX_CONTENT_LENGTH"]} bytes'}), 400
-            
-        # Generate unique filename
-        filename = secure_filename(file.filename)
-        unique_filename = f"{int(time.time())}_{filename}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        # Create upload directory if it doesn't exist
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         
-        try:
-            # Save file in chunks
-            file.save(filepath)
+        # Save the file
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        # Get test names
+        test_names = get_test_names()
+        if not test_names:
+            return jsonify({'error': 'Could not load test names'}), 500
             
-            # Verify file was saved
-            if not os.path.exists(filepath):
-                return jsonify({'error': 'Failed to save file'}), 500
-                
-            # Get test names from mapping file
-            test_names = get_test_names()
-            if not test_names:
-                return jsonify({'error': 'Failed to load test names'}), 500
-                
-            # Process the report
+        # Process the PDF
+        try:
             results = process_report(filepath, test_names)
             if not results:
-                return jsonify({'error': 'Failed to process report'}), 500
+                return jsonify({'error': 'No results could be extracted from the PDF'}), 400
                 
-            # Save results to Excel
-            excel_path = save_results_to_excel(results, unique_filename)
-            if not excel_path:
-                return jsonify({'error': 'Failed to save results'}), 500
-                
-            # Clean up the uploaded PDF
-            try:
-                os.remove(filepath)
-            except Exception as e:
-                logger.warning(f"Failed to clean up PDF file: {str(e)}")
-                
+            # Create validation report
+            output_path = os.path.join(app.config['UPLOAD_FOLDER'], 'validation_report.xlsx')
+            create_validation_report(
+                app.config['MAPPING_FILE'],
+                pd.DataFrame([{'Test Name': k, 'Value': v} for k, v in results.items()]),
+                app.config['MAPPING_FILE'],
+                output_path
+            )
+            
+            # Return success response
             return jsonify({
-                'success': True,
                 'message': 'File processed successfully',
-                'filename': os.path.basename(excel_path)
+                'results': results,
+                'download_url': f'/download/{os.path.basename(output_path)}'
             })
             
         except Exception as e:
-            logger.error(f"Error processing file: {str(e)}")
-            # Clean up the uploaded PDF if it exists
-            if os.path.exists(filepath):
-                try:
-                    os.remove(filepath)
-                except:
-                    pass
-            return jsonify({'error': f'Error processing file: {str(e)}'}), 500
+            logger.error(f"Error processing PDF: {str(e)}")
+            return jsonify({'error': f'Error processing PDF: {str(e)}'}), 500
             
+        finally:
+            # Clean up uploaded file
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                logger.error(f"Error cleaning up file: {str(e)}")
+                
     except Exception as e:
         logger.error(f"Error in upload_file: {str(e)}")
         return jsonify({'error': f'Server error: {str(e)}'}), 500
