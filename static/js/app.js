@@ -97,7 +97,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     downloadLink.href = `${API_URL}/download/${data.filename}`;
                     downloadLink.textContent = 'Download Results';
                     downloadLink.className = 'download-button';
-                    downloadLink.download = data.filename;
+                    downloadLink.target = '_blank'; // Open in new tab
+                    
+                    // Add click handler for direct download
+                    downloadLink.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        fetch(this.href)
+                            .then(response => {
+                                if (!response.ok) throw new Error('Download failed');
+                                return response.blob();
+                            })
+                            .then(blob => {
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = data.filename;
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                a.remove();
+                            })
+                            .catch(error => {
+                                console.error('Download error:', error);
+                                showError('Failed to download the file. Please try again.');
+                            });
+                    });
                     
                     resultContainer.innerHTML = '';
                     resultContainer.appendChild(downloadLink);
