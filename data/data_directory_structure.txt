@@ -1,0 +1,30 @@
+# Data Directory
+
+This directory should contain the following files:
+
+## Required Files
+
+1. `marker_mapping.csv`: Maps standard test names to Thyrocare test names
+   
+   Format example:
+   ```
+   Name,Alt Name,Thyrocare Test Name
+   Hemoglobin,Hb,Haemoglobin
+   White Blood Cell Count,WBC,Total Leucocyte Count
+   ```
+
+2. `true_data.csv`: Contains reference/expected values for validation
+   
+   Format example:
+   ```
+   Name,Alt Name,UOM,Value
+   Hemoglobin,Hb,g/dL,14.2
+   White Blood Cell Count,WBC,10^3/μL,6.7
+   ```
+
+## File Structure
+
+- The mapping file must have the columns: `Name`, `Alt Name`, `Thyrocare Test Name`
+- The true data file must have the columns: `Name`, `Alt Name`, `UOM`, `Value`
+
+Place these files in this directory before running the application.

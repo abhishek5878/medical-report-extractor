@@ -1,0 +1,201 @@
+Id,Name,Alt Name,UOM,Thyrocare Test Name
+1,Adiponectin,,µg/mL,
+2,Albumin,Serum Albumin,g/dL,ALBUMIN - SERUM
+3,Alanine Transaminase,"SGPT, ALT",U/L,ALANINE TRANSAMINASE (SGPT)
+4,Anti-tTG,"Anti-tissue transglutaminase, IgA Anti-tTG",U/mL,TISSUE TRANSGLUTAMINASE - IGA (TTG)
+5,Anti-Hep B Antibody,Anti-HBs,mIU/mL,
+6,Anti-Mullerian Hormone,AMH,ng/mL,
+7,Anti-Nuclear Antibody,ANA,AU/mL,ANTI NUCLEAR ANTIBODIES (ANA)
+8,Apolipoprotein B,ApoB,mg/dL,APOLIPOPROTEIN - B (APO-B)
+9,Aspartate Transaminase,"SGOT, AST",U/L,ASPARTATE AMINOTRANSFERASE (SGOT )
+10,Bacteroides/Firmicutes Ratio,,Ratio,
+11,Blood Pressure (Systolic),BP,mmHg,
+12,Blood Pressure (Diastolic),BP,mmHg,
+13,Fasting Blood Glucose,"FBG, Fasting Blood Sugar. FBS",mg/dL,FASTING BLOOD SUGAR(GLUCOSE)
+14,Glycated Hemoglobin,HbA1c,%,HbA1c - (HPLC)
+15,Body Mass Index,BMI,kg/m²,
+16,Bristol Stool Grading,Bristol Stool Chart,Types,
+17,C3,Complement C3,mg/dL,
+18,C5a,,ng/mL,
+19,Calcium Levels,Serum Calcium,mg/dL,CALCIUM
+20,CD4/CD8 Ratio,,Ratio,
+21,Cortisol,,µg/dL,CORTISOL
+22,Creatinine,Serum Creatinine,mg/dL,CREATININE - SERUM
+23,High Sensitivity C-Reactive Protein,High-sensitivity CRP (hs-CRP),mg/L,HIGH SENSITIVITY C-REACTIVE PROTEIN (HS-CRP)
+24,DEXA Score,"DEXA Scan, BMD Score","T-score, Z-score",
+25,Erythrocyte Sedimentation Rate,ESR,mm/hr,ERYTHROCYTE SEDIMENTATION RATE (ESR)
+26,Estradiol,E2,pg/mL,
+27,Fasting Insulin,,µIU/mL,INSULIN - FASTING
+28,Fecal calprotectin,,µg/g,
+29,Ferritin,,ng/mL,FERRITIN
+30,Fibrinogen,Factor I,mg/dL,
+31,Folate,Vitamin B9,ng/mL,VITAMIN B9/FOLIC ACID
+32,Follicle-Stimulating Hormone,FSH,mIU/mL,FOLLICLE STIMULATING HORMONE (FSH)
+33,Triiodothyronine (unbound),Free T3,pg/mL or pmol/L,FREE TRIIODOTHYRONINE (FT3)
+34,Thyroxine (unbound),Free T4,ng/dL or pmol/L,FREE THYROXINE (FT4)
+35,Glycated Albumin,,%,
+36,Gut Microbiome Analysis,,"Diversity score, species ratio",
+37,High-Density Lipoprotein,"HDL, Good Cholesterol",mg/dL,HDL CHOLESTEROL - DIRECT
+38,Heart Rate Recovery,HRR,bpm,
+39,Hematocrit,Hct,% of blood volume,Hematocrit
+40,Hemoglobin,Hb,g/dL,HEMOGLOBIN
+41,HOMA-IR,Homeostatic Model Assessment-IR,Ratio,
+42,Homocysteine,,µmol/L,HOMOCYSTEINE
+43,Hydrogen Breath Test,H2 Breath Test,ppm,
+44,Immunoglobulin E,IgE ,IU/mL,IMMUNOGLOBULIN E (IGE)
+45,Interferon Gamma Release Assay,IGRA,IU/mL,
+46,Inhibin B,,pg/mL,
+47,Lactose Intolerance,,,
+48,Low-Density Lipoprotein,"LDL, Bad Cholesterol",mg/dL,LDL CHOLESTEROL - DIRECT
+49,Lean Body Mass (%),Fat-Free Mass%,% of total weight,
+50,Leptin,,ng/mL,
+51,Luteinizing Hormone,LH,mIU/mL,LUTEINISING HORMONE (LH)
+52,Lipoprotein (a),Lp(a),mg/dL,Lipoprotein (a) [Lp(a)]
+53,Metabolic Syndrome,,,
+54,NK Cells (% of Lymphocytes),Natural Killer Cells,% of total lymphocytes,
+55,Platelets,Thrombocytes,x10^9/L,PLATELET COUNT
+56,Procalcitonin,PCT,ng/mL,
+57,Progesterone,,ng/mL,
+58,Prolactin,,ng/mL,PROLACTIN (PRL)
+59,Sperm Count,Sperm Concentration,million sperm/mL,
+60,Sperm Morphology,,% normal forms,
+61,Sperm Motility,,% motile sperm,
+62,Testosterone,Total Testosterone,ng/dL,TESTOSTERONE
+63,Testosterone-to-Cortisol Ratio,T:C Ratio,Unitless ratio,
+64,TGC/HDL Ratio,Triglyceride/HDL Ratio,Unitless ratio,TRIG / HDL RATIO
+65,Thyroid Stimulating Hormone,TSH,µIU/mL,TSH - ULTRASENSITIVE
+66,Total Body Fat (%),,% of total weight,
+67,Total Cholesterol,TC,mg/dL,TOTAL CHOLESTEROL
+68,Total Iron-Binding Capacity,TIBC,µg/dL,TOTAL IRON BINDING CAPACITY (TIBC)
+69,Total Sperm Parameters,,"Count, motility, morphology combined",
+70,Transferrin Saturation,TSAT,%,% TRANSFERRIN SATURATION
+71,Triglycerides,TGC,mg/dL,TRIGLYCERIDES
+72,Urea,BUN (Blood Urea Nitrogen),mg/dL,BLOOD UREA NITROGEN (BUN)
+73,Visceral Adiposity Index,VAI,Calculated index,
+74,25-Hydroxy Vitamin D,Vitamin D Total,ng/mL,VITAMIN D TOTAL
+75,Vitamin B12,Cobalamin,pg/mL,VITAMIN B-12
+76,VO2 max,Maximal Oxygen Uptake,mL/kg/min,
+77,Waist Circumference,WC,cm,
+78,Total WBC Count,"Total White Blood Cell Count, Total Leucocyte Count",x10^9/L,TOTAL LEUCOCYTE COUNT (WBC)
+79,Waist-Hip Ratio,WHR,Unitless ratio,
+80,Sleep Duration (hrs),,Hours per night,
+81,Sleep Regularity,,Variation in hours/min,
+82,Deep Sleep %,Slow Wave Sleep %,% of total sleep time,
+83,REM Sleep %,Rapid Eye Movement Sleep %,% of total sleep time,
+84,Awakenings (per night),Sleep Interruptions,Count (#),
+85,Sleep Latency,Sleep Onset Latency,Minutes,
+86,PHQ-9,Patient Health Questionnaire-9,Score (0–27),
+87,GAD-7,Generalized Anxiety Disorder-7,Score (0–21),
+88,Uric Acid,Serum Urate,mg/dL,URIC ACID
+89,Daily Step Count,,Count (#),
+90,Smoking Status,,,
+91,Resting Heart Rate,,bpm,
+92,Heart Rate Variability,HRV,ms,
+93,Alcohol Consumption,,,
+94,Stool passing frequency (last 2w),,Count (#),
+95,Bloating/gas instances (last 2w),,Count (#),
+96,Heartburn/acid reflux (last 2w),,Count (#),
+97,Loose/watery stools (last 2w),,Count (#),
+98,Constipated (last 2w),,Count (#),
+99,Nauseous/queasy (last 2w),,Count (#),
+100,Adverse reaction post certain foods (last 2w),,Count (#),
+101,Recurrent mouth ulcers/sores (last 2w),,Count (#),
+102,Appetite (last 2w),,Count (#),
+103,Incomplete evacuation (last 2w),,Count (#),
+104,Free Testosterone,,ng/dL,FREE TESTOSTERONE
+105,Sex Hormone Binding Globulin ,SHBG,nmol/L,SEX HORMONE BINDING GLOBULIN (SHBG)
+106,Dehydroepiandrosterone Sulphate,"DHEA-S, DHEA-sulphate",µg/dL,DHEA - SULPHATE (DHEAS)
+107,Prostate-Specific Antigen,PSA,ng/mL,PROSTATE SPECIFIC ANTIGEN (PSA)
+108,Absolute Neutrophil Count,,x10^9/L,Neutrophils - Absolute Count
+109,Absolute Lymphocyte Count,,x10^9/L,Lymphocytes - Absolute Count
+110,Absolute Monocyte Count,,x10^9/L,Monocytes - Absolute Count
+111,Absolute Eosinophil Count,,x10^9/L,Eosinophils - Absolute Count 
+112,Absolute Basophil Count,,x10^9/L,Basophils - Absolute Count
+113,Differential Neutrophil Count,,%,Neutrophils Percentage
+114,Differential Lymphocyte Count,,%,Lymphocytes Percentage
+115,Differential Monocyte Count,,%,Monocytes Percentage
+116,Differential Eosinophil Count,,%,Eosinophils Percentage
+117,Differential Basophil Count,,%,Basophils Percentage
+118,Neutrophil to Lymphocyte Ratio,NLR,Ratio,
+119,Serum Zinc,Zinc,µg/dL,SERUM ZINC
+120,Activity per week,,Minutes,
+121,Physical Activity,,,
+122,Potassium,,mmol/L,POTASSIUM
+123,Sodium,,mmol/L,SODIUM
+124,Free Testosterone to Total Testosterone Ratio,,%,
+125,Creatine Kinase,Creatine Phosphokinase,U/L,CREATININE PHOSPHOKINASE
+126,Serum Magnesium,,mg/dL,MAGNESIUM
+127,Forget recent events (last 1M),,Count (#),
+128,Trouble in concentrating (last 1M),,Count (#),
+129,Misplace objects (last 1M),,Count (#),
+130,Difficulty recalling names (last 1M),,Count (#),
+131,Change in planning ability (last 1M),,Count (#),
+132,Feel slow in processing info (last 1M),,Count (#),
+133,Anxiety or increased irritability (last 1M),,Count (#),
+134,Repeat yourself in convo (last 1M),,Count (#),
+135,Struggle finding words (last 1M),,Count (#),
+136,Got confused in familiar places (last 1M),,Count (#),
+137,Cortisol (Morning),,µg/dL,CORTISOL
+138,WBC Differential,White Blood Cell Differential,Count (#),
+139,Immunoglobulin G,IgG,g/L,IMMUNOGLOBULIN G (IGG)
+140,Cystatin C,,mg/L,CYSTATIN C
+141,Apolipoprotein A1,Apo-A1,mg/dL,APOLIPOPROTEIN - A1 (APO-A1)
+142,Apo-B / Apo-A1 Ratio,Apo-B/A1,Ratio,APO B / APO A1 RATIO (APO B/A1)
+143,C-Reactive Protein,CRP,mg/L,C-REACTIVE PROTEIN (CRP)
+144,Iron,,µg/dL,IRON
+145,Unsaturated Iron-Binding Capacity,UIBC,µg/dL,UNSAT.IRON-BINDING CAPACITY(UIBC)
+146,Total / HDL Cholesterol Ratio,,Ratio,TC/ HDL CHOLESTEROL RATIO
+147,LDL / HDL Cholesterol Ratio,,Ratio,LDL / HDL RATIO
+148,HDL / LDL Cholesterol Ratio,,Ratio,HDL / LDL RATIO
+149,Non-HDL Cholesterol,,mg/dL,NON-HDL CHOLESTEROL
+150,VLDL Cholesterol,VLDL,mg/dL,VLDL CHOLESTEROL
+151,Alkaline Phosphatase,,U/L,ALKALINE PHOSPHATASE
+152,Bilirubin Total,,mg/dL,BILIRUBIN - TOTAL
+153,Bilirubin Direct,,mg/dL,BILIRUBIN -DIRECT
+154,Bilirubin Indirect,,mg/dL,BILIRUBIN (INDIRECT)
+155,Gamma Glutamyl Transferase,GGT,U/L,GAMMA GLUTAMYL TRANSFERASE (GGT)
+156,SGOT / SGPT Ratio,SGOT / SGPT,Ratio,SGOT / SGPT RATIO
+157,Protein Total,,gm/dL,PROTEIN - TOTAL
+158,Serum Globulin,,gm/dL,SERUM GLOBULIN
+159,Serum Albumin / Globulin Ratio,,Ratio,SERUM ALB/GLOBULIN RATIO
+160,Total Triiodothyronine,Total T3,ng/dL,TOTAL TRIIODOTHYRONINE (T3)
+161,Total Thyroxine,Total T4,µg/dL,TOTAL THYROXINE (T4)
+162,Empty for use,Empty for use,,
+163,BUN / Creatinine Ratio,,Ratio,BUN / SR.CREATININE RATIO
+164,Urea (Calculated),,,UREA (CALCULATED)
+165,Urea / Creatinine Ratio,,Ratio,UREA / SR.CREATININE RATIO
+166,Estimated Glomerular Filtration Rate,eGFR,mL/min/1.73m²,EST. GLOMERULAR FILTRATION RATE (eGFR)
+167,Vitamin D2,,ng/mL,VITAMIN D2
+168,Vitamin D3,,ng/mL,VITAMIN D3
+169,Average Blood Glucose,ABG,mg/dL,AVERAGE BLOOD GLUCOSE (ABG)
+170,Urinary Microalbumin,,µg/mL,URINARY MICROALBUMIN
+171,Creatinine - Urine,,mg/dL,CREATININE - URINE
+172,Urinary Microalbumin / Creatinine Ratio,UA/C,µg/mg of Creatinine,URI. ALBUMIN/CREATININE RATIO (UA/C)
+173,Urine Specific Gravity,,,SPECIFIC GRAVITY
+174,Urine pH,,,PH
+175,Urinary Glucose,,mg/dL,URINARY GLUCOSE
+176,Urinary Bilirubin,,mg/dL,URINARY BILIRUBIN
+177,Urine Ketone,,mg/dL,URINE KETONE
+178,Urine Blood,,,URINE BLOOD
+179,Urinary Protein,,mg/dL,URINARY PROTEIN
+180,Urobilinogen,,mg/dL,UROBILINOGEN
+181,Nitrite,,,NITRITE
+182,Uriniary Leucocytes,,cells/HPF,URINARY LEUCOCYTES (PUS CELLS)
+183,Mean Corpuscular Volume,MCV,fL,Mean Corpuscular Volume (MCV)
+184,Mean Corpuscular Hemoglobin,MCH,pq,Mean Corpuscular Hemoglobin (MCH)
+185,Mean Corpuscular Hemoglobin Concentration ,MCHC,g/dL,Mean Corp.Hemo. Conc (MCHC)
+186,Red Cell Distribution Width - SD,RDW-SD,fL,Red Cell Distribution Width - SD (RDW-SD)
+187,Red Cell Distribution Width,RDW - CV,%,Red Cell Distribution Width (RDW - CV)
+188,Red Cell Distribution Width Index,RDWI,,RED CELL DISTRIBUTION WIDTH INDEX (RDWI)
+189,Mentzer Index,,,MENTZER INDEX
+190,Total Red Blood Cells,,x10^6/µL,Total RBC
+191,Immature Granulocyte Percentage,IG%,%,Immature Granulocyte Percentage (IG%)
+192,Nucleated Red Blood Cells,,%,Nucleated Red Blood Cells %
+193,Immature Granulocytes,IG,x10^9/L,Immature Granulocytes (IG)
+194,Nucleated Red Blood Cells ,,x10^9/L,Nucleated Red Blood Cells 
+195,Mean Platelet Volume,MPV,fL,Mean Platelet Volume (MPV)
+196,Platelet Distribution Width,PDW,fL,Platelet Distribution Width (PDW)
+197,Platelet to Large Cell Ratio,PLCR,%,Platelet to Large Cell Ratio (PLCR)
+198,Plateletcrit,,%,Plateletcrit (PCT)
+199,Height,,cm,
+200,Weight,,kg,
