@@ -16,11 +16,7 @@ if not api_key:
     print("Warning: OPENAI_API_KEY environment variable is not set. Some features may not work.")
     client = None
 else:
-    client = openai.OpenAI(
-        api_key=api_key,
-        timeout=30.0,
-        max_retries=3
-    )
+    client = openai.OpenAI(api_key=api_key)
 
 # PDF Text Extraction with Multi-threading
 def extract_page_text(page, page_num):
