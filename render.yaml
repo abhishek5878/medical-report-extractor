@@ -4,9 +4,10 @@ services:
     env: python
     buildCommand: |
       pip install -r requirements.txt
-      apt-get update && apt-get install -y tesseract-ocr
+      apt-get update && apt-get install -y tesseract-ocr tesseract-ocr-eng libtesseract-dev libleptonica-dev
+      export TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
     startCommand: |
-      gunicorn app:app --timeout 900 --workers 1 --threads 1 --worker-class gthread --max-requests 1 --max-requests-jitter 1 --log-level debug
+      gunicorn app:app --timeout 900 --workers 1 --threads 1 --worker-class gthread --max-requests 1 --max-requests-jitter 1 --log-level debug --preload
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
@@ -22,6 +23,8 @@ services:
         value: pdf
       - key: MAPPING_FILE
         value: data/true_data.csv
+      - key: TESSDATA_PREFIX
+        value: /usr/share/tesseract-ocr/4.00/tessdata
     plan: free
     healthCheckPath: /health
     autoDeploy: true 

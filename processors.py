@@ -147,6 +147,13 @@ class EnhancedPDFExtractor:
             # Preprocess the image
             img = EnhancedPDFExtractor.preprocess_image(img)
             
+            # Check if Tesseract is available
+            try:
+                pytesseract.get_tesseract_version()
+            except Exception as e:
+                logger.error(f"Tesseract not available: {e}")
+                return ""
+            
             # Run OCR with multiple configurations and take the best result
             configs = [
                 '--psm 6',  # Assume single uniform block of text
@@ -156,13 +163,17 @@ class EnhancedPDFExtractor:
             
             results = []
             for config in configs:
-                text = pytesseract.image_to_string(
-                    img,
-                    config = f'{config} -c tessedit_char_whitelist="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,:;/\\-_+=()[]{{}}"')
-                results.append(text)
+                try:
+                    text = pytesseract.image_to_string(
+                        img,
+                        config = f'{config} -c tessedit_char_whitelist="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,:;/\\-_+=()[]{{}}"')
+                    results.append(text)
+                except Exception as e:
+                    logger.error(f"OCR failed with config {config}: {e}")
+                    continue
             
             # Choose the result with the most content
-            return max(results, key=len)
+            return max(results, key=len) if results else ""
         
         except Exception as e:
             logger.error(f"Image OCR error: {e}")
@@ -350,7 +361,7 @@ class EnhancedPDFExtractor:
             return ""
     
     @classmethod
-    def extract_pdf_text(cls, pdf_path: str, max_workers: int = 4) -> str:
+    def extract_pdf_text(cls, pdf_path: str, max_workers: int = 1) -> str:
         """Extract text from PDF with multiple fallback methods"""
         logger.info(f"Starting text extraction from: {pdf_path}")
         
@@ -374,7 +385,7 @@ class EnhancedPDFExtractor:
                     logger.warning(f"Method {method.__name__} returned insufficient text")
             except Exception as e:
                 logger.error(f"Method {method.__name__} failed: {e}")
-                traceback.print_exc()
+                continue
         
         return "[PDF TEXT EXTRACTION FAILED WITH ALL METHODS]"
 
