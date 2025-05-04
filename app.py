@@ -12,6 +12,7 @@ app = Flask(__name__)
 app.secret_key = "medical_report_extractor_secret_key"
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
+app.config['UPLOAD_EXTENSIONS'] = ['.pdf']
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -20,11 +21,8 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 MAPPING_FILE = os.path.join('data', 'marker_mapping.csv')
 TRUE_DATA_FILE = os.path.join('data', 'true_data.csv')
 
-# Allowed extensions for upload
-ALLOWED_EXTENSIONS = {'pdf'}
-
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'pdf'}
 
 @app.route('/')
 def index():
@@ -34,57 +32,77 @@ def index():
 def upload_file():
     if 'file' not in request.files:
         flash('No file part')
-        return redirect(request.url)
+        return redirect(url_for('index'))
     
     file = request.files['file']
     
     if file.filename == '':
         flash('No selected file')
-        return redirect(request.url)
+        return redirect(url_for('index'))
     
-    if file and allowed_file(file.filename):
+    if not allowed_file(file.filename):
+        flash('Only PDF files are allowed')
+        return redirect(url_for('index'))
+    
+    try:
         # Generate unique filename
         unique_filename = str(uuid.uuid4()) + '.pdf'
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
         file.save(filepath)
         
+        # Load mapping to get test names
+        mapping_df = pd.read_csv(MAPPING_FILE)
+        thyrocare_tests = mapping_df['Thyrocare Test Name'].dropna().tolist()
+        
+        # Process the PDF with timeout
         try:
-            # Load mapping to get test names
-            mapping_df = pd.read_csv(MAPPING_FILE)
-            thyrocare_tests = mapping_df['Thyrocare Test Name'].dropna().tolist()
-            
-            # Process the PDF
             results = process_report(filepath, thyrocare_tests, batch_size=50)
-            
-            # Create result DataFrame
-            result_df = pd.DataFrame({
-                "Test Name": list(results.keys()),
-                "Value": list(results.values())
-            })
-            
-            # Generate output filename
-            output_filename = f"results_{int(time.time())}.xlsx"
-            output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-            
-            # Generate validation report
+        except Exception as e:
+            flash(f'Error processing PDF: {str(e)}')
+            os.remove(filepath)
+            return redirect(url_for('index'))
+        
+        # Create result DataFrame
+        result_df = pd.DataFrame({
+            "Test Name": list(results.keys()),
+            "Value": list(results.values())
+        })
+        
+        # Generate output filename
+        output_filename = f"results_{int(time.time())}.xlsx"
+        output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+        
+        # Generate validation report
+        try:
             create_validation_report(
                 true_data_path=TRUE_DATA_FILE,
                 result_df=result_df,
                 mapping_path=MAPPING_FILE,
                 output_excel_path=output_path
             )
-            
-            # Clean up the uploaded PDF
-            os.remove(filepath)
-            
-            # Return the Excel file
-            return send_file(output_path, as_attachment=True, download_name='medical_report_results.xlsx')
-            
         except Exception as e:
-            flash(f'Error processing file: {str(e)}')
+            flash(f'Error creating validation report: {str(e)}')
+            os.remove(filepath)
             return redirect(url_for('index'))
-    else:
-        flash('Only PDF files are allowed')
+        
+        # Clean up the uploaded PDF
+        os.remove(filepath)
+        
+        # Return the Excel file
+        return send_file(
+            output_path,
+            as_attachment=True,
+            download_name='medical_report_results.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        flash(f'Error processing file: {str(e)}')
+        if 'filepath' in locals():
+            try:
+                os.remove(filepath)
+            except:
+                pass
         return redirect(url_for('index'))
 
 if __name__ == '__main__':
