@@ -44,24 +44,41 @@ try:
         '/opt/homebrew/bin/tesseract'
     ]
     
+    tesseract_found = False
     for path in tesseract_paths:
         if os.path.exists(path):
             pytesseract.pytesseract.tesseract_cmd = path
             logger.info(f"Set Tesseract path to: {path}")
+            tesseract_found = True
             break
-    else:
-        # If not found in common locations, try which command
+    
+    if not tesseract_found:
+        # If not found in common locations, try which/where command
         try:
             import subprocess
             if os.name == 'nt':  # Windows
-                tesseract_path = subprocess.check_output(['where', 'tesseract']).decode('utf-8').strip()
+                try:
+                    tesseract_path = subprocess.check_output(['where', 'tesseract']).decode('utf-8').strip()
+                except subprocess.CalledProcessError:
+                    logger.error("Tesseract not found in PATH. Please install Tesseract from https://github.com/UB-Mannheim/tesseract/wiki")
+                    raise
             else:  # Unix-like
-                tesseract_path = subprocess.check_output(['which', 'tesseract']).decode('utf-8').strip()
+                try:
+                    tesseract_path = subprocess.check_output(['which', 'tesseract']).decode('utf-8').strip()
+                except subprocess.CalledProcessError:
+                    logger.error("Tesseract not found in PATH. Please install Tesseract using your package manager.")
+                    raise
+                    
             if tesseract_path:
                 pytesseract.pytesseract.tesseract_cmd = tesseract_path
                 logger.info(f"Set Tesseract path to: {tesseract_path}")
         except Exception as e:
             logger.error(f"Could not find Tesseract: {e}")
+            logger.error("Please install Tesseract OCR and ensure it's in your PATH")
+            logger.error("Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki")
+            logger.error("Linux: sudo apt-get install tesseract-ocr")
+            logger.error("macOS: brew install tesseract")
+            raise
             
     # Verify TESSDATA_PREFIX
     tessdata_prefix = os.getenv('TESSDATA_PREFIX')
@@ -73,14 +90,23 @@ try:
             tessdata_prefix = default_windows_path
             logger.info(f"Using default Windows tessdata path: {tessdata_prefix}")
         else:
-            logger.error("TESSDATA_PREFIX environment variable is not set and default path not found")
+            error_msg = """TESSDATA_PREFIX environment variable is not set and default path not found.
+Please set TESSDATA_PREFIX to point to your tessdata directory:
+1. Windows: C:\\Program Files\\Tesseract-OCR\\tessdata
+2. Linux: /usr/share/tesseract-ocr/4.00/tessdata
+3. macOS: /usr/local/share/tessdata"""
+            logger.error(error_msg)
+            raise EnvironmentError(error_msg)
     elif not os.path.exists(tessdata_prefix):
-        logger.error(f"Tessdata directory not found at: {tessdata_prefix}")
+        error_msg = f"Tessdata directory not found at: {tessdata_prefix}"
+        logger.error(error_msg)
+        raise EnvironmentError(error_msg)
     else:
         logger.info(f"Tessdata directory found at: {tessdata_prefix}")
         
 except Exception as e:
     logger.error(f"Error setting Tesseract path: {e}")
+    raise
 
 class PDFRepairEngine:
     """Class to handle PDF repair and preprocessing"""
