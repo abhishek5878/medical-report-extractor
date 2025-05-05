@@ -37,6 +37,8 @@ else:
 try:
     # Try to find Tesseract in common locations
     tesseract_paths = [
+        'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',  # Windows default path
+        'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',  # Windows 32-bit path
         '/usr/local/bin/tesseract',  # New installation path
         '/usr/bin/tesseract',
         '/opt/homebrew/bin/tesseract'
@@ -51,7 +53,10 @@ try:
         # If not found in common locations, try which command
         try:
             import subprocess
-            tesseract_path = subprocess.check_output(['which', 'tesseract']).decode('utf-8').strip()
+            if os.name == 'nt':  # Windows
+                tesseract_path = subprocess.check_output(['where', 'tesseract']).decode('utf-8').strip()
+            else:  # Unix-like
+                tesseract_path = subprocess.check_output(['which', 'tesseract']).decode('utf-8').strip()
             if tesseract_path:
                 pytesseract.pytesseract.tesseract_cmd = tesseract_path
                 logger.info(f"Set Tesseract path to: {tesseract_path}")
@@ -61,7 +66,14 @@ try:
     # Verify TESSDATA_PREFIX
     tessdata_prefix = os.getenv('TESSDATA_PREFIX')
     if not tessdata_prefix:
-        logger.error("TESSDATA_PREFIX environment variable is not set")
+        # Try default Windows path
+        default_windows_path = 'C:\\Program Files\\Tesseract-OCR\\tessdata'
+        if os.path.exists(default_windows_path):
+            os.environ['TESSDATA_PREFIX'] = default_windows_path
+            tessdata_prefix = default_windows_path
+            logger.info(f"Using default Windows tessdata path: {tessdata_prefix}")
+        else:
+            logger.error("TESSDATA_PREFIX environment variable is not set and default path not found")
     elif not os.path.exists(tessdata_prefix):
         logger.error(f"Tessdata directory not found at: {tessdata_prefix}")
     else:
