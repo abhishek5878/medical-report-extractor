@@ -50,7 +50,7 @@ services:
     startCommand: |
       export TESSDATA_PREFIX=/usr/local/share/tessdata
       export PATH=$PATH:/usr/local/bin
-      gunicorn app:app --timeout 900 --workers 1 --threads 1 --worker-class gthread --max-requests 1 --max-requests-jitter 1 --log-level debug --preload
+      gunicorn app:app --timeout 300 --workers 1 --threads 1 --worker-class gthread --max-requests 1 --max-requests-jitter 1 --log-level debug --preload --worker-tmp-dir /dev/shm
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
