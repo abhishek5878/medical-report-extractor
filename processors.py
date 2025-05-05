@@ -35,12 +35,18 @@ else:
 
 # Configure Tesseract path
 try:
+    # First, try to set environment variables from Render config
+    render_tessdata = '/usr/local/share/tessdata'
+    if os.path.exists(render_tessdata):
+        os.environ['TESSDATA_PREFIX'] = render_tessdata
+        logger.info(f"Using Render tessdata path: {render_tessdata}")
+    
     # Try to find Tesseract in common locations
     tesseract_paths = [
+        '/usr/local/bin/tesseract',  # Render default path
+        '/usr/bin/tesseract',
         'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',  # Windows default path
         'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',  # Windows 32-bit path
-        '/usr/local/bin/tesseract',  # New installation path
-        '/usr/bin/tesseract',
         '/opt/homebrew/bin/tesseract'
     ]
     
@@ -83,18 +89,25 @@ try:
     # Verify TESSDATA_PREFIX
     tessdata_prefix = os.getenv('TESSDATA_PREFIX')
     if not tessdata_prefix:
-        # Try default Windows path
-        default_windows_path = 'C:\\Program Files\\Tesseract-OCR\\tessdata'
-        if os.path.exists(default_windows_path):
-            os.environ['TESSDATA_PREFIX'] = default_windows_path
-            tessdata_prefix = default_windows_path
-            logger.info(f"Using default Windows tessdata path: {tessdata_prefix}")
+        # Try default paths
+        default_paths = [
+            '/usr/local/share/tessdata',  # Render default
+            '/usr/share/tesseract-ocr/4.00/tessdata',  # Ubuntu default
+            'C:\\Program Files\\Tesseract-OCR\\tessdata'  # Windows default
+        ]
+        
+        for path in default_paths:
+            if os.path.exists(path):
+                os.environ['TESSDATA_PREFIX'] = path
+                tessdata_prefix = path
+                logger.info(f"Using default tessdata path: {tessdata_prefix}")
+                break
         else:
-            error_msg = """TESSDATA_PREFIX environment variable is not set and default path not found.
+            error_msg = """TESSDATA_PREFIX environment variable is not set and default paths not found.
 Please set TESSDATA_PREFIX to point to your tessdata directory:
-1. Windows: C:\\Program Files\\Tesseract-OCR\\tessdata
-2. Linux: /usr/share/tesseract-ocr/4.00/tessdata
-3. macOS: /usr/local/share/tessdata"""
+1. Render/Linux: /usr/local/share/tessdata
+2. Ubuntu: /usr/share/tesseract-ocr/4.00/tessdata
+3. Windows: C:\\Program Files\\Tesseract-OCR\\tessdata"""
             logger.error(error_msg)
             raise EnvironmentError(error_msg)
     elif not os.path.exists(tessdata_prefix):
