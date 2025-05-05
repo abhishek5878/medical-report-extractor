@@ -33,6 +33,33 @@ else:
     openai.api_key = api_key
     client = openai
 
+# Configure Tesseract path
+try:
+    # Try to find Tesseract in common locations
+    tesseract_paths = [
+        '/usr/bin/tesseract',
+        '/usr/local/bin/tesseract',
+        '/opt/homebrew/bin/tesseract'
+    ]
+    
+    for path in tesseract_paths:
+        if os.path.exists(path):
+            pytesseract.pytesseract.tesseract_cmd = path
+            logger.info(f"Set Tesseract path to: {path}")
+            break
+    else:
+        # If not found in common locations, try which command
+        try:
+            import subprocess
+            tesseract_path = subprocess.check_output(['which', 'tesseract']).decode('utf-8').strip()
+            if tesseract_path:
+                pytesseract.pytesseract.tesseract_cmd = tesseract_path
+                logger.info(f"Set Tesseract path to: {tesseract_path}")
+        except Exception as e:
+            logger.error(f"Could not find Tesseract: {e}")
+except Exception as e:
+    logger.error(f"Error setting Tesseract path: {e}")
+
 class PDFRepairEngine:
     """Class to handle PDF repair and preprocessing"""
     
