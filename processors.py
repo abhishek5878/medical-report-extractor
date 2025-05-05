@@ -37,8 +37,8 @@ else:
 try:
     # Try to find Tesseract in common locations
     tesseract_paths = [
+        '/usr/local/bin/tesseract',  # New installation path
         '/usr/bin/tesseract',
-        '/usr/local/bin/tesseract',
         '/opt/homebrew/bin/tesseract'
     ]
     
@@ -57,6 +57,16 @@ try:
                 logger.info(f"Set Tesseract path to: {tesseract_path}")
         except Exception as e:
             logger.error(f"Could not find Tesseract: {e}")
+            
+    # Verify TESSDATA_PREFIX
+    tessdata_prefix = os.getenv('TESSDATA_PREFIX')
+    if not tessdata_prefix:
+        logger.error("TESSDATA_PREFIX environment variable is not set")
+    elif not os.path.exists(tessdata_prefix):
+        logger.error(f"Tessdata directory not found at: {tessdata_prefix}")
+    else:
+        logger.info(f"Tessdata directory found at: {tessdata_prefix}")
+        
 except Exception as e:
     logger.error(f"Error setting Tesseract path: {e}")
 

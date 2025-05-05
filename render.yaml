@@ -3,15 +3,53 @@ services:
     name: medical-report-extractor
     env: python
     buildCommand: |
-      apt-get update && apt-get install -y tesseract-ocr tesseract-ocr-eng libtesseract-dev libleptonica-dev
-      export TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
-      export PATH=$PATH:/usr/bin:/usr/local/bin
+      # Install system dependencies
+      apt-get update && apt-get install -y \
+        tesseract-ocr \
+        tesseract-ocr-eng \
+        libtesseract-dev \
+        libleptonica-dev \
+        pkg-config \
+        build-essential \
+        autoconf \
+        automake \
+        libtool \
+        pkg-config \
+        libpng-dev \
+        libjpeg-dev \
+        libtiff-dev \
+        zlib1g-dev
+      
+      # Install Tesseract from source
+      cd /tmp && \
+      wget https://github.com/tesseract-ocr/tesseract/archive/refs/tags/4.1.1.tar.gz && \
+      tar xvf 4.1.1.tar.gz && \
+      cd tesseract-4.1.1 && \
+      ./autogen.sh && \
+      ./configure && \
+      make && \
+      make install && \
+      ldconfig
+      
+      # Install language data
+      cd /tmp && \
+      wget https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata && \
+      mkdir -p /usr/local/share/tessdata && \
+      mv eng.traineddata /usr/local/share/tessdata/
+      
+      # Set environment variables
+      export TESSDATA_PREFIX=/usr/local/share/tessdata
+      export PATH=$PATH:/usr/local/bin
+      
+      # Verify installation
       which tesseract
       tesseract --version
+      
+      # Install Python dependencies
       pip install -r requirements.txt
     startCommand: |
-      export TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
-      export PATH=$PATH:/usr/bin:/usr/local/bin
+      export TESSDATA_PREFIX=/usr/local/share/tessdata
+      export PATH=$PATH:/usr/local/bin
       gunicorn app:app --timeout 900 --workers 1 --threads 1 --worker-class gthread --max-requests 1 --max-requests-jitter 1 --log-level debug --preload
     envVars:
       - key: PYTHON_VERSION
@@ -29,9 +67,9 @@ services:
       - key: MAPPING_FILE
         value: data/true_data.csv
       - key: TESSDATA_PREFIX
-        value: /usr/share/tesseract-ocr/4.00/tessdata
+        value: /usr/local/share/tessdata
       - key: PATH
-        value: $PATH:/usr/bin:/usr/local/bin
+        value: $PATH:/usr/local/bin
     plan: free
     healthCheckPath: /health
     autoDeploy: true 
